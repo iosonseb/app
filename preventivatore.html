@@ -3625,12 +3625,10 @@ function renderPickerItems(){
     const catName = cat?cat.name:'?';
     const catColor = cat?cat.color:'#888';
     const isCustom = it.id.startsWith('custom_');
-    const usage = state.usageCount[it.id]||0;
-    const usageLabel = usage>0 ? `<span style="background:var(--accent-light);color:var(--accent);font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px">×${usage}</span>` : '';
     return `
       <div class="picker-item" id="pi-${it.id}">
         <div class="picker-item-text" onclick="addItemFromPicker('${it.id}')">
-          <div class="picker-item-cat" id="pi-cat-${it.id}" style="color:${catColor}">${escHtml(catName)}${usageLabel}</div>
+          <div class="picker-item-cat" id="pi-cat-${it.id}" style="color:${catColor}">${escHtml(catName)}</div>
           <div class="picker-item-desc" id="pi-desc-${it.id}">${escHtml(it.desc)}</div>
         </div>
         <div class="picker-item-actions" onclick="event.stopPropagation()">
