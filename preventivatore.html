@@ -2459,12 +2459,32 @@ let state = {
 // ═══════════════════════════════════════════════
 const LOGO_KEY = 'preventivo_edile_logo';
 
-function saveLogo(base64){
-  state.companyLogo = base64 || null;
+function compressLogoBase64(base64, maxW=400, maxH=200, quality=0.82){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      const ratio = Math.min(maxW/w, maxH/h, 1);
+      w = Math.round(w*ratio); h = Math.round(h*ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/webp', quality) || base64);
+    };
+    img.onerror = () => resolve(base64);
+    img.src = base64;
+  });
+}
+
+async function saveLogo(base64){
+  const compressed = base64 ? await compressLogoBase64(base64) : null;
+  state.companyLogo = compressed || null;
   try{
-    if(base64) localStorage.setItem(LOGO_KEY, base64);
+    if(compressed) localStorage.setItem(LOGO_KEY, compressed);
     else localStorage.removeItem(LOGO_KEY);
-  }catch(e){ console.error('Logo save failed:',e); }
+  }catch(e){}
+  // Salva subito su Firebase per sincronizzazione cross-device
+  saveState();
 }
 
 function loadLogo(){
@@ -2479,7 +2499,8 @@ function saveState(){
     customLibrary: state.customLibrary,
     companyDefaults: state.companyDefaults,
     priceMemory: state.priceMemory,
-    usageCount: state.usageCount
+    usageCount: state.usageCount,
+    companyLogo: state.companyLogo || null
   };
   // Salva sempre in localStorage come backup offline
   try{
@@ -2558,7 +2579,13 @@ async function loadState(){
   }catch(e){
     console.error('Load failed:',e);
   }
-  loadLogo();
+  // Logo: preferisce quello da Firebase/localStorage principale, poi il key separato
+  if(data && data.companyLogo){
+    state.companyLogo = data.companyLogo;
+    try{ localStorage.setItem(LOGO_KEY, data.companyLogo); }catch(e){}
+  } else {
+    loadLogo(); // fallback localStorage separato (retrocompatibilità)
+  }
 }
 
 function getLibrary(){
@@ -3017,7 +3044,8 @@ async function resetAllData(){
     customLibrary: [],
     companyDefaults: {...COMPANY_DEFAULTS_BUILTIN},
     priceMemory: {},
-    usageCount: {}
+    usageCount: {},
+    companyLogo: null
   };
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState)); }catch(e){}
   try{ localStorage.removeItem(LOGO_KEY); }catch(e){}
