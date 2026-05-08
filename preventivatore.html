@@ -551,6 +551,23 @@ input,select,textarea{font-family:inherit}
 .list-filter-bar{
   display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;
 }
+.settings-dropdown-wrap{position:relative}
+.settings-dropdown{
+  position:absolute;right:0;top:calc(100% + 6px);
+  background:white;border:1.5px solid var(--border-soft);
+  border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);
+  min-width:180px;z-index:200;overflow:hidden;
+}
+.settings-dropdown-item{
+  display:flex;align-items:center;gap:8px;
+  width:100%;padding:10px 14px;
+  background:none;border:none;cursor:pointer;
+  font-size:13px;font-family:inherit;text-align:left;
+  color:var(--ink);transition:background .15s;
+}
+.settings-dropdown-item:hover{background:var(--cream)}
+.settings-dropdown-item.danger{color:var(--danger)}
+.settings-dropdown-item.danger:hover{background:#fff0f0}
 .filter-chip{
   background:white;
   border:1.5px solid var(--border);
@@ -1833,7 +1850,17 @@ service cloud.firestore {
     <div class="list-header">
       <h2>I Miei Documenti<span class="count" id="prev-count"></span></h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:transparent;opacity:.6" onclick="resetAllData()" title="Cancella tutti i dati e ricomincia da zero">🗑 Reimposta tutto</button>
+        <div class="settings-dropdown-wrap" id="settings-dropdown-wrap">
+          <button class="btn-icon" onclick="toggleSettingsDropdown()" title="Opzioni" style="width:34px;height:34px;border-radius:8px;border:1.5px solid var(--border-soft);background:var(--cream)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+          <div class="settings-dropdown" id="settings-dropdown" style="display:none">
+            <button class="settings-dropdown-item danger" onclick="toggleSettingsDropdown();resetAllData()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              Reimposta tutto
+            </button>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="newPreventivo('preventivo')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nuovo Preventivo
@@ -2761,6 +2788,20 @@ function saveCompanyDefaults(){
   showToast('Dati azienda salvati come predefiniti');
 }
 
+function toggleSettingsDropdown(){
+  const dd = document.getElementById('settings-dropdown');
+  if(!dd) return;
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen){
+    setTimeout(()=>{ document.addEventListener('click', closeSettingsDropdown, {once:true}); }, 0);
+  }
+}
+function closeSettingsDropdown(){
+  const dd = document.getElementById('settings-dropdown');
+  if(dd) dd.style.display = 'none';
+}
+
 function resetAllData(){
   if(!confirm('⚠️ Sei sicuro di voler cancellare TUTTI i dati?\n\nVerranno eliminati tutti i preventivi, consuntivi, dati azienda e impostazioni.\nQuesta operazione non può essere annullata.')) return;
   const conferma = prompt('Per confermare scrivi esattamente:\n\nvoglio eliminare tutto');
@@ -2769,20 +2810,7 @@ function resetAllData(){
     return;
   }
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
-  // Reinizializza lo state
-  state.preventivi       = [];
-  state.categories       = [...DEFAULT_CATEGORIES_BUILTIN.map(c=>({...c}))];
-  state.customLibrary    = [];
-  state.companyDefaults  = {...COMPANY_DEFAULTS_BUILTIN};
-  state.priceMemory      = {};
-  state.usageCount       = {};
-  state.currentId        = null;
-  state.lastOpenedId     = null;
-  state.listFilter       = 'all';
-  saveState();
-  renderList();
-  switchView('list');
-  showToast('Dati reimpostati. Profilo azzerato.');
+  location.reload();
 }
 
 function fillSetupForm(){
