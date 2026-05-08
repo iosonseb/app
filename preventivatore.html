@@ -1915,6 +1915,7 @@ service cloud.firestore {
       <h2>Dati Azienda
         <div class="card-actions">
           <button class="btn btn-ghost btn-sm" onclick="saveCompanyDefaults()" title="Salva come predefiniti">💾 Salva predefiniti</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="resetAllData()" title="Cancella tutti i dati e ricomincia da zero">🗑 Reimposta tutto</button>
         </div>
       </h2>
       <p class="setup-section-info">Questi dati sono precompilati e modificabili. Clicca "Salva predefiniti" per usarli come base per i prossimi preventivi.</p>
@@ -2756,6 +2757,30 @@ function saveCompanyDefaults(){
   state.companyDefaults = {...p.company};
   saveState();
   showToast('Dati azienda salvati come predefiniti');
+}
+
+function resetAllData(){
+  if(!confirm('⚠️ Sei sicuro di voler cancellare TUTTI i dati?\n\nVerranno eliminati tutti i preventivi, consuntivi, dati azienda e impostazioni.\nQuesta operazione non può essere annullata.')) return;
+  const conferma = prompt('Per confermare scrivi esattamente:\n\nvoglio eliminare tutto');
+  if((conferma||'').trim().toLowerCase() !== 'voglio eliminare tutto'){
+    if(conferma !== null) showToast('Testo non corretto. Operazione annullata.','warning');
+    return;
+  }
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  // Reinizializza lo state
+  state.preventivi       = [];
+  state.categories       = [...DEFAULT_CATEGORIES_BUILTIN.map(c=>({...c}))];
+  state.customLibrary    = [];
+  state.companyDefaults  = {...COMPANY_DEFAULTS_BUILTIN};
+  state.priceMemory      = {};
+  state.usageCount       = {};
+  state.currentId        = null;
+  state.lastOpenedId     = null;
+  state.listFilter       = 'all';
+  saveState();
+  renderList();
+  switchView('list');
+  showToast('Dati reimpostati. Profilo azzerato.');
 }
 
 function fillSetupForm(){
