@@ -1369,8 +1369,21 @@ input,select,textarea{font-family:inherit}
 .picker-item:hover .picker-item-del{opacity:1}
 .picker-item-del:hover{background:var(--danger-light);color:var(--danger)}
 
+.picker-custom-toggle-row{
+  padding:10px 22px;border-top:1.5px solid var(--border-soft);
+  background:var(--paper);
+}
+.picker-custom-toggle-btn{
+  display:inline-flex;align-items:center;gap:7px;
+  background:none;border:1.5px dashed var(--border);
+  border-radius:8px;padding:7px 14px;
+  font-size:13px;font-weight:500;color:var(--muted);
+  cursor:pointer;transition:all .15s;font-family:inherit;width:100%;justify-content:center;
+}
+.picker-custom-toggle-btn:hover{border-color:var(--accent);color:var(--accent);border-style:solid;background:var(--accent-light)}
+.picker-custom-toggle-btn.open{border-style:solid;border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
 .picker-custom{
-  padding:14px 22px;border-top:2px solid var(--border-soft);
+  padding:14px 22px;border-top:1.5px solid var(--accent-soft);
   background:var(--cream);
 }
 .picker-custom h4{
@@ -2197,8 +2210,17 @@ service cloud.firestore {
         </div>
         <div class="picker-cat-tabs" id="picker-cat-tabs"></div>
         <div class="picker-items" id="picker-items"></div>
-        <div class="picker-custom">
-          <h4>+ Crea voce personalizzata</h4>
+        <div class="picker-custom-toggle-row">
+          <button class="picker-custom-toggle-btn" id="picker-custom-toggle-btn" onclick="togglePickerCustom()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Crea nuova voce
+          </button>
+        </div>
+        <div class="picker-custom" id="picker-custom-panel" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <h4 style="margin:0">Nuova voce personalizzata</h4>
+            <button onclick="togglePickerCustom()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:0 2px">&times;</button>
+          </div>
           <div class="picker-custom-form">
             <input type="text" id="picker-custom-desc" placeholder="Descrizione della nuova voce..." onkeydown="if(event.key==='Enter')addCustomFromPicker()">
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -3000,8 +3022,8 @@ function handleLogoUpload(input){
   if(!file) return;
   if(file.size > 2 * 1024 * 1024){ showToast('File troppo grande. Max 2MB.','warning'); return; }
   const reader = new FileReader();
-  reader.onload = function(e){
-    saveLogo(e.target.result);
+  reader.onload = async function(e){
+    await saveLogo(e.target.result);
     renderLogoArea();
     showToast('Logo salvato');
   };
@@ -4000,6 +4022,18 @@ function addItemFromPicker(libId){
   showToast('Voce aggiunta');
 }
 
+function togglePickerCustom(){
+  const panel = document.getElementById('picker-custom-panel');
+  const btn   = document.getElementById('picker-custom-toggle-btn');
+  if(!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if(btn) btn.classList.toggle('open', !isOpen);
+  if(!isOpen){
+    setTimeout(()=>{ document.getElementById('picker-custom-desc')?.focus(); }, 50);
+  }
+}
+
 function addCustomFromPicker(){
   const desc = (document.getElementById('picker-custom-desc').value||'').trim();
   if(!desc){ showToast('Inserisci una descrizione','warning'); return; }
@@ -4013,7 +4047,6 @@ function addCustomFromPicker(){
     saveState();
     showToast('Voce salvata in libreria');
   }
-  // Aggiungi al preventivo (sempre nella categoria del + cliccato)
   addItem(state.pickerTargetCatId, obj);
   refreshCategorySection(state.pickerTargetCatId);
   recalcAll();
@@ -4021,6 +4054,11 @@ function addCustomFromPicker(){
   document.getElementById('picker-custom-save').checked = false;
   renderPickerSidebar();
   if(save) renderPickerItems();
+  // Chiudi il pannello dopo l'aggiunta
+  const panel = document.getElementById('picker-custom-panel');
+  const btn   = document.getElementById('picker-custom-toggle-btn');
+  if(panel){ panel.style.display='none'; }
+  if(btn){ btn.classList.remove('open'); }
 }
 
 function confirmDeleteLibraryItem(id){
