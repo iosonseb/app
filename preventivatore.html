@@ -1093,6 +1093,19 @@ input,select,textarea{font-family:inherit}
   background:var(--danger-light);
 }
 
+/* ─── LOGO AZIENDA ─── */
+.logo-upload-area{
+  border:2px dashed var(--border-soft);border-radius:12px;
+  padding:20px;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;
+  background:var(--cream);position:relative;
+}
+.logo-upload-area:hover{border-color:var(--accent);background:var(--accent-light)}
+.logo-upload-area input[type=file]{display:none}
+.logo-preview-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.logo-preview-img{max-height:72px;max-width:200px;object-fit:contain;border-radius:6px;border:1px solid var(--border-soft);background:white;padding:6px}
+.logo-preview-actions{display:flex;flex-direction:column;gap:8px}
+
 /* ─── ACCONTI SECTION ─── */
 .acconti-card{
   background:white;
@@ -1460,6 +1473,7 @@ input,select,textarea{font-family:inherit}
   margin-bottom:32px;padding-bottom:24px;
   border-bottom:2.5px solid #1a1a2e;
 }
+.pdf-logo{max-height:64px;max-width:180px;object-fit:contain;margin-bottom:10px;display:block}
 .pdf-company-name{
   font-family:'DM Serif Display',serif;
   font-size:24px;color:#1a1a2e;margin-bottom:8px;font-weight:400;
@@ -1950,6 +1964,12 @@ service cloud.firestore {
         </div>
       </h2>
       <p class="setup-section-info">Questi dati sono precompilati e modificabili. Clicca "Salva predefiniti" per usarli come base per i prossimi preventivi.</p>
+
+      <div style="margin-bottom:18px">
+        <label style="font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:8px">Logo Azienda</label>
+        <div id="logo-area"></div>
+      </div>
+
       <div class="form-grid">
         <div class="form-group full">
           <label>Ragione Sociale / Nome Ditta</label>
@@ -2318,12 +2338,27 @@ let state = {
   pickerTargetCatId: null,
   pickerAddingExtras: false, // quando true, le voci aggiunte vanno marcate origin='extra'
   priceMemory: {}, // libIdOrDescKey -> {price, unit}
-  usageCount: {}   // libIdOrDescKey -> count
+  usageCount: {},  // libIdOrDescKey -> count
+  companyLogo: null // base64 string
 };
 
 // ═══════════════════════════════════════════════
 // PERSISTENCE
 // ═══════════════════════════════════════════════
+const LOGO_KEY = 'preventivo_edile_logo';
+
+function saveLogo(base64){
+  state.companyLogo = base64 || null;
+  try{
+    if(base64) localStorage.setItem(LOGO_KEY, base64);
+    else localStorage.removeItem(LOGO_KEY);
+  }catch(e){ console.error('Logo save failed:',e); }
+}
+
+function loadLogo(){
+  try{ state.companyLogo = localStorage.getItem(LOGO_KEY) || null; }catch(e){}
+}
+
 function saveState(){
   const toSave = {
     preventivi: state.preventivi,
@@ -2411,6 +2446,7 @@ async function loadState(){
   }catch(e){
     console.error('Load failed:',e);
   }
+  loadLogo();
 }
 
 function getLibrary(){
@@ -2790,6 +2826,56 @@ function saveCompanyDefaults(){
   showToast('Dati azienda salvati come predefiniti');
 }
 
+function renderLogoArea(){
+  const area = document.getElementById('logo-area');
+  if(!area) return;
+  if(state.companyLogo){
+    area.innerHTML = `
+      <div class="logo-preview-wrap">
+        <img src="${state.companyLogo}" class="logo-preview-img" alt="Logo azienda">
+        <div class="logo-preview-actions">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('logo-file-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Cambia
+          </button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteLogo()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
+            Elimina
+          </button>
+        </div>
+      </div>
+      <input type="file" id="logo-file-input" accept="image/*" onchange="handleLogoUpload(this)" style="display:none">`;
+  } else {
+    area.innerHTML = `
+      <div class="logo-upload-area" onclick="document.getElementById('logo-file-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32" style="margin:0 auto 8px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <div style="font-size:13px;font-weight:600;color:var(--ink-soft)">Carica logo</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">PNG, JPG, SVG — max 2MB</div>
+        <input type="file" id="logo-file-input" accept="image/*" onchange="handleLogoUpload(this)" style="display:none">
+      </div>`;
+  }
+}
+
+function handleLogoUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 2 * 1024 * 1024){ showToast('File troppo grande. Max 2MB.','warning'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    saveLogo(e.target.result);
+    renderLogoArea();
+    showToast('Logo salvato');
+  };
+  reader.readAsDataURL(file);
+}
+
+function deleteLogo(){
+  if(!confirm('Eliminare il logo aziendale?')) return;
+  saveLogo(null);
+  renderLogoArea();
+  showToast('Logo eliminato');
+}
+
 function toggleSettingsDropdown(){
   const dd = document.getElementById('settings-dropdown');
   if(!dd) return;
@@ -2822,6 +2908,7 @@ async function resetAllData(){
     usageCount: {}
   };
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState)); }catch(e){}
+  try{ localStorage.removeItem(LOGO_KEY); }catch(e){}
   if(window._firebase && window._firebase.ready()){
     try{ await window._firebase.save(emptyState); }catch(e){ console.error('Reset error:',e); }
   }
@@ -2831,6 +2918,7 @@ async function resetAllData(){
 function fillSetupForm(){
   const p = getCurrentPrev();
   if(!p) return;
+  renderLogoArea();
   const numeroInput = document.getElementById('f-numero');
   const isLocked = p.tipo==='consuntivo' && p.sourceId;
   numeroInput.value = p.numero;
@@ -4483,6 +4571,7 @@ function buildPdfHtml(){
     <div class="pdf-doc">
       <div class="pdf-header">
         <div>
+          ${state.companyLogo ? `<img src="${state.companyLogo}" class="pdf-logo" alt="Logo">` : ''}
           <div class="pdf-company-name">${escHtml(p.company.nome||'')}</div>
           <div class="pdf-company-details">
             ${p.company.piva?`<strong>P.IVA</strong> ${escHtml(p.company.piva)}<br>`:''}
