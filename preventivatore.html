@@ -2811,6 +2811,7 @@ async function resetAllData(){
     if(conferma !== null) showToast('Testo non corretto. Operazione annullata.','warning');
     return;
   }
+  if(!confirm('🚨 ULTIMA CONFERMA\n\nStai per eliminare definitivamente:\n• Tutti i preventivi e consuntivi\n• I dati azienda salvati\n• Tutti i contatori e le impostazioni\n\nQuesta operazione è IRREVERSIBILE e non può essere annullata.\n\nProcedere?')) return;
   const emptyState = {
     preventivi: [],
     lastOpenedId: null,
