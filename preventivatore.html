@@ -291,6 +291,8 @@
 #app-container{ display:none; }
 
 *{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent;overflow-x:hidden}
 .sync-badge{
   display:inline-flex;align-items:center;justify-content:center;
   width:32px;height:32px;border-radius:50%;flex-shrink:0;
@@ -1709,53 +1711,163 @@ input,select,textarea{font-family:inherit}
 ::-webkit-scrollbar-thumb:hover{background:var(--muted-soft)}
 
 /* ─── RESPONSIVE ─── */
+/* ═══════════════════════════════════
+   RESPONSIVE — TABLET  (≤ 880px)
+═══════════════════════════════════ */
+@media(max-width:880px){
+  .picker-layout{flex-direction:column}
+  .picker-side{width:100%;border-left:none;border-top:1.5px solid var(--border-soft);max-height:38vh}
+}
+
+/* ═══════════════════════════════════
+   RESPONSIVE — MOBILE  (≤ 768px)
+═══════════════════════════════════ */
 @media(max-width:768px){
-  .app-header{padding:12px 16px}
-  .app-brand h1{font-size:18px}
+
+  /* ── Header ── */
+  .app-header{padding:10px 14px;gap:8px}
+  .app-brand h1{font-size:17px}
   .app-brand-sub{display:none}
-  .header-tabs{order:3;width:100%;overflow-x:auto;padding:3px}
-  .tab-btn{padding:6px 11px;font-size:12px}
-  .tab-btn .tab-num{width:18px;height:18px;font-size:12px}
-  .builder-topbar{position:static;flex-direction:column;align-items:stretch}
-  .builder-actions{width:100%;justify-content:flex-start}
-  .builder-actions .iva-control{flex:1;justify-content:flex-end}
-  .form-grid,.form-grid.three{grid-template-columns:1fr}
-  .builder-container{padding:14px 12px 60px}
-  .list-container,.setup-container{padding:0 14px;margin:18px auto}
-  .card{padding:18px}
-  .card h2{font-size:16px}
+  .user-name{display:none}
+  .header-tabs{order:3;width:100%;overflow-x:auto;padding:3px;-webkit-overflow-scrolling:touch}
+  .tab-btn{padding:8px 12px;font-size:12px;min-height:36px}
+  .tab-btn .tab-num{width:20px;height:20px;font-size:12px}
+
+  /* ── Views ── */
+  .list-container,.setup-container{padding:0 12px;margin:14px auto}
+  .builder-container{padding:10px 10px 80px}
+  .card{padding:16px}
+  .card h2{font-size:15px}
+
+  /* ── List ── */
+  .list-header{margin-bottom:16px}
+  .list-header h2{font-size:20px}
   .preventivi-grid{grid-template-columns:1fr}
-  .summary-card{padding:18px;flex-direction:column-reverse;align-items:stretch;text-align:center}
+  .prev-card{padding:16px}
+
+  /* ── Builder topbar ── */
+  .builder-topbar{position:static;flex-direction:column;align-items:stretch;padding:12px 14px;gap:10px}
+  .builder-title{min-width:0}
+  .builder-title h2{font-size:14px}
+  .builder-actions{width:100%;flex-wrap:wrap;gap:6px}
+  .builder-actions .iva-control{margin-left:auto}
+  .builder-actions .btn-primary{flex:1;justify-content:center}
+  .show-toggle{flex:1;justify-content:center}
+
+  /* ── Items table → card layout ── */
+  .items-table-wrapper{overflow-x:visible}
+  .items-table{min-width:0;width:100%}
+  .items-table thead{display:none}
+  .items-table tbody tr{
+    display:grid;
+    grid-template-columns:auto auto 1fr auto;
+    grid-template-rows:auto auto auto;
+    grid-template-areas:
+      "desc  desc  desc  eseg"
+      "qty   unit  price price"
+      "total total total del";
+    border:1.5px solid var(--border-soft);
+    border-radius:10px;
+    margin-bottom:10px;
+    padding:10px 12px;
+    background:white;
+    box-shadow:var(--shadow-sm);
+    column-gap:8px;row-gap:6px;
+  }
+  .items-table tbody tr:hover{background:white}
+  .items-table td{padding:0;border:none;font-size:13px;display:flex;align-items:center}
+
+  .drag-handle-cell{display:none}
+  .idx-cell{display:none}
+
+  .cell-desc{
+    grid-area:desc;
+    font-size:13.5px;line-height:1.5;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--border-soft);
+    align-items:flex-start;
+  }
+  .cell-eseguito{grid-area:eseg;justify-content:flex-end}
+  .cell-qty{grid-area:qty}
+  .cell-unit{grid-area:unit}
+  .cell-price{grid-area:price;justify-content:flex-end}
+  .cell-total{grid-area:total}
+  .cell-del{grid-area:del;justify-content:flex-end}
+  .item-total{font-size:15px;font-weight:700}
+
+  /* Input touch-friendly */
+  .qty-input,.price-input{width:70px;padding:8px 7px;font-size:14px;min-height:38px}
+  .unit-select{padding:8px 6px;font-size:13px;min-height:38px;width:auto}
+  .btn-icon{width:40px;height:40px}
+  .eseguito-toggle{width:36px;height:36px;font-size:16px}
+
+  /* ── Summary ── */
+  .summary-card{padding:16px;flex-direction:column-reverse;align-items:stretch;text-align:center;gap:12px}
   .summary-card>div[style]{text-align:center !important}
-  .summary-breakdown{justify-content:center}
-  .summary-total{font-size:30px}
+  .summary-breakdown{justify-content:center;gap:8px}
+  .summary-total{font-size:28px}
+
+  /* ── Acconti ── */
+  .acconti-table thead{display:none}
+  .acconti-table tbody tr{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:"num data" "desc importo" "del del";
+    gap:6px;
+    padding:12px 14px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .acconti-table td{padding:0;border:none;font-size:13px}
+  .acconti-table td:nth-child(1){grid-area:num;font-weight:700;color:var(--accent);align-self:center}
+  .acconti-table td:nth-child(2){grid-area:desc}
+  .acconti-table td:nth-child(3){grid-area:data}
+  .acconti-table td:nth-child(4){grid-area:importo;text-align:right}
+  .acconti-table td:nth-child(5){grid-area:del;display:flex;justify-content:flex-end}
+  .acconti-table input{font-size:14px;padding:8px 10px;min-height:38px}
+  .acconti-summary{flex-direction:column;align-items:stretch}
+  .acc-summary-row{text-align:left}
+
+  /* ── Modali ── */
   .modal-overlay{padding:0;align-items:flex-end}
-  .modal-box{max-height:96vh;border-radius:14px 14px 0 0}
-  .modal-box.sm{border-radius:14px}
-  #modal-pdf .modal-body{padding:14px}
-  .pdf-doc{padding:24px 22px}
+  .modal-box{max-height:96vh;border-radius:16px 16px 0 0;width:100%}
+  .modal-box.sm{border-radius:14px;margin:16px;width:calc(100% - 32px)}
+  .modal-header{padding:16px}
+  .modal-body{padding:16px}
+  .modal-footer{padding:12px 16px;flex-wrap:wrap;gap:8px}
+  .modal-footer .btn{flex:1;justify-content:center}
+  #modal-pdf .modal-body{padding:10px}
+
+  /* ── PDF preview ── */
+  .pdf-doc{padding:20px 16px}
   .pdf-header{grid-template-columns:1fr;text-align:left}
   .pdf-client-block{text-align:left;margin-top:10px}
   .pdf-footer{grid-template-columns:1fr}
   .pdf-sign{text-align:left}
   .pdf-sign-line{margin-left:0}
-  .acconti-summary{flex-direction:column;align-items:stretch}
-  .acc-summary-row{text-align:left}
-  .builder-title h2{font-size:15px}
-}
-@media(max-width:880px){
-  .picker-layout{flex-direction:column}
-  .picker-side{width:100%;border-left:none;border-top:1.5px solid var(--border-soft);max-height:38vh}
-}
-@media(max-width:520px){
-  .picker-cat-tabs{padding:8px 14px}
-  .picker-search-row{padding:10px 14px}
-  .picker-target-banner{padding:8px 14px}
+
+  /* ── Picker ── */
+  .picker-cat-tabs{padding:8px 12px}
+  .picker-search-row{padding:10px 12px}
+  .picker-target-banner{padding:8px 12px}
   .picker-items{padding:6px 10px}
-  .picker-custom{padding:12px 14px}
-  .modal-header{padding:14px 16px}
-  .modal-body{padding:16px}
-  .modal-footer{padding:12px 16px}
+  .picker-custom{padding:12px}
+
+  /* ── Form ── */
+  .form-grid,.form-grid.three{grid-template-columns:1fr}
+  input,select,textarea{font-size:16px !important} /* previene zoom iOS */
+  .form-group input,.form-group select,.form-group textarea{min-height:44px;padding:10px 12px}
+
+  /* ── Buttons touch ── */
+  .btn{min-height:44px}
+  .btn-sm{min-height:38px}
+  .cat-add-btn{min-height:44px;width:100%;justify-content:center}
+
+  /* ── Category header ── */
+  .category-header{padding:14px}
+  .category-header h3{font-size:14px}
+
+  /* ── Logo upload ── */
+  .logo-preview-wrap{flex-direction:column;align-items:flex-start}
 }
 
 /* ─── PRINT (used inside print window) ─── */
@@ -3355,25 +3467,25 @@ function renderItemRow(item, idx, isCons){
         <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
       </td>
       <td class="idx-cell">${idx+1}</td>
-      ${isCons?`<td class="center">
+      ${isCons?`<td class="center cell-eseguito">
         <button class="eseguito-toggle ${notExec?'no':''}" onclick="toggleEseguito('${item.id}')" title="${notExec?'Non eseguito':'Eseguito'}">
           ${notExec?'✕':'✓'}
         </button>
       </td>`:''}
-      <td class="desc-cell" onclick="editItemDesc('${item.id}')" id="desc-${item.id}">
+      <td class="desc-cell cell-desc" onclick="editItemDesc('${item.id}')" id="desc-${item.id}">
         <span class="desc-text">${escHtml(item.desc)}</span>
         <span class="edit-pencil">✎</span>
       </td>
-      <td class="center">
+      <td class="center cell-qty">
         <input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
           placeholder="0" onchange="updateItem('${item.id}','qty',this.value)">
       </td>
-      <td class="center">
+      <td class="center cell-unit">
         <select class="unit-select" onchange="updateItem('${item.id}','unit',this.value)">
           ${UNITS.map(u=>`<option value="${u}" ${item.unit===u?'selected':''}>${u}</option>`).join('')}
         </select>
       </td>
-      <td class="center">
+      <td class="center cell-price">
         <div class="cell-with-toggle">
           <input class="price-input${(!item.price && item.price!==undefined)?'':''}" type="number" min="0" step="any" value="${item.price??''}"
             placeholder="0,00" onchange="updateItem('${item.id}','price',this.value)"
@@ -3385,7 +3497,7 @@ function renderItemRow(item, idx, isCons){
           </label>
         </div>
       </td>
-      <td class="center">
+      <td class="center cell-total">
         <div class="cell-with-toggle">
           <span class="item-total" id="total-${item.id}">${fmtCur(total)}</span>
           <label class="show-cb-label" onclick="event.stopPropagation()" title="Mostra nel preventivo">
@@ -3394,7 +3506,7 @@ function renderItemRow(item, idx, isCons){
           </label>
         </div>
       </td>
-      <td>
+      <td class="cell-del">
         <button class="btn-icon danger" onclick="removeItem('${item.id}')" title="Rimuovi voce">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
