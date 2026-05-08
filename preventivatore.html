@@ -85,6 +85,22 @@
         if(user){
           hideLoginScreen();
           showApp();
+
+          // Gestione reset pendente: svuota Firebase prima di caricare
+          const resetPending = localStorage.getItem('preventivo_edile_v3_reset_pending');
+          if(resetPending){
+            localStorage.removeItem('preventivo_edile_v3_reset_pending');
+            localStorage.removeItem('preventivo_edile_v3');
+            const emptyState = {
+              preventivi:[],lastOpenedId:null,
+              categories:[{id:'lavori',name:'Demolizioni e Costruzioni',color:'#7a5a2a'},{id:'elettrico',name:'Opere Impianto Elettrico',color:'#8a7a1e'},{id:'idrico',name:'Opere Impianto Idraulico',color:'#1e7a6b'},{id:'tinteggiatura',name:'Opere Decorazione',color:'#6b3a9b'}],
+              customLibrary:[],companyDefaults:{nome:'',piva:'',phone:'',addr:'',email:''},
+              priceMemory:{},usageCount:{}
+            };
+            try{ await setDoc(userDocRef(), emptyState); }catch(e){ console.error('Reset Firebase error:',e); }
+            localStorage.setItem('preventivo_edile_v3', JSON.stringify(emptyState));
+          }
+
           if(typeof loadState === "function"){
             await loadState();
             if(typeof renderList === "function") renderList();
@@ -2348,26 +2364,6 @@ function saveState(){
 }
 
 async function loadState(){
-  // Controlla se c'è un reset pendente (richiesto prima del reload)
-  const resetPending = localStorage.getItem(STORAGE_KEY + '_reset_pending');
-  if(resetPending){
-    localStorage.removeItem(STORAGE_KEY + '_reset_pending');
-    const emptyState = {
-      preventivi: [],
-      lastOpenedId: null,
-      categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES_BUILTIN)),
-      customLibrary: [],
-      companyDefaults: {...COMPANY_DEFAULTS_BUILTIN},
-      priceMemory: {},
-      usageCount: {}
-    };
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState)); }catch(e){}
-    if(window._firebase && window._firebase.ready()){
-      try{ await window._firebase.save(emptyState); }catch(e){}
-    }
-    return; // lascia lo state ai valori di default vuoti
-  }
-
   let data = null;
 
   // 1. Prova Firebase (fonte principale)
@@ -2829,9 +2825,7 @@ function resetAllData(){
     if(conferma !== null) showToast('Testo non corretto. Operazione annullata.','warning');
     return;
   }
-  // Segna il reset pendente e ricarica: la pulizia Firebase avverrà all'avvio
-  try{ localStorage.setItem(STORAGE_KEY + '_reset_pending', '1'); }catch(e){}
-  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  localStorage.setItem('preventivo_edile_v3_reset_pending', '1');
   location.reload();
 }
 
