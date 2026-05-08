@@ -1473,7 +1473,7 @@ input,select,textarea{font-family:inherit}
   margin-bottom:32px;padding-bottom:24px;
   border-bottom:2.5px solid #1a1a2e;
 }
-.pdf-logo{max-height:64px;max-width:180px;object-fit:contain;margin-bottom:10px;display:block}
+.pdf-logo{max-height:134px;max-width:378px;object-fit:contain;margin-bottom:10px;display:block}
 .pdf-company-name{
   font-family:'DM Serif Display',serif;
   font-size:24px;color:#1a1a2e;margin-bottom:8px;font-weight:400;
@@ -4571,8 +4571,7 @@ function buildPdfHtml(){
     <div class="pdf-doc">
       <div class="pdf-header">
         <div>
-          ${state.companyLogo ? `<img src="${state.companyLogo}" class="pdf-logo" alt="Logo">` : ''}
-          <div class="pdf-company-name">${escHtml(p.company.nome||'')}</div>
+          ${state.companyLogo ? `<img src="${state.companyLogo}" class="pdf-logo" alt="Logo">` : `<div class="pdf-company-name">${escHtml(p.company.nome||'')}</div>`}
           <div class="pdf-company-details">
             ${p.company.piva?`<strong>P.IVA</strong> ${escHtml(p.company.piva)}<br>`:''}
             ${p.company.phone?`<strong>Cell.</strong> ${escHtml(p.company.phone)}<br>`:''}
