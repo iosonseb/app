@@ -1832,10 +1832,13 @@ service cloud.firestore {
   <div class="list-container">
     <div class="list-header">
       <h2>I Miei Documenti<span class="count" id="prev-count"></span></h2>
-      <button class="btn btn-primary" onclick="newPreventivo('preventivo')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nuovo Preventivo
-      </button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:transparent;opacity:.6" onclick="resetAllData()" title="Cancella tutti i dati e ricomincia da zero">🗑 Reimposta tutto</button>
+        <button class="btn btn-primary" onclick="newPreventivo('preventivo')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuovo Preventivo
+        </button>
+      </div>
     </div>
     <div class="list-filter-bar" id="list-filters">
       <button class="filter-chip active" data-filter="all" onclick="filterList('all',this)">Tutti</button>
@@ -1915,7 +1918,6 @@ service cloud.firestore {
       <h2>Dati Azienda
         <div class="card-actions">
           <button class="btn btn-ghost btn-sm" onclick="saveCompanyDefaults()" title="Salva come predefiniti">💾 Salva predefiniti</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="resetAllData()" title="Cancella tutti i dati e ricomincia da zero">🗑 Reimposta tutto</button>
         </div>
       </h2>
       <p class="setup-section-info">Questi dati sono precompilati e modificabili. Clicca "Salva predefiniti" per usarli come base per i prossimi preventivi.</p>
