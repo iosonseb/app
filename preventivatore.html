@@ -42,16 +42,17 @@
   function setSyncStatus(status){
     const el = document.getElementById("sync-status");
     if(!el) return;
-    const map = {
-      saving:  {text:"💾 Salvataggio...", cls:"syncing"},
-      saved:   {text:"☁️ Salvato nel cloud", cls:"synced"},
-      loading: {text:"🔄 Caricamento...", cls:"syncing"},
-      error:   {text:"⚠️ Errore sync", cls:"error"},
-      offline: {text:"💻 Offline (localStorage)", cls:"offline"}
+    const icons = {
+      saving:  {svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10"/><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></svg>`, cls:"syncing", title:"Salvataggio in corso..."},
+      saved:   {svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`, cls:"synced", title:"Salvato nel cloud"},
+      loading: {svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10"/><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></svg>`, cls:"syncing", title:"Caricamento..."},
+      error:   {svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`, cls:"error", title:"Errore sincronizzazione"},
+      offline: {svg:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>`, cls:"offline", title:"Offline (localStorage)"}
     };
-    const s = map[status] || map.saved;
-    el.textContent = s.text;
+    const s = icons[status] || icons.saved;
+    el.innerHTML = s.svg;
     el.className = "sync-badge " + s.cls;
+    el.title = s.title;
   }
 
   function showLoginScreen(){ document.getElementById("login-screen")?.style.setProperty("display","flex"); }
@@ -291,10 +292,10 @@
 
 *{box-sizing:border-box;margin:0;padding:0}
 .sync-badge{
-  font-size:11px;font-weight:500;
-  padding:4px 10px;border-radius:20px;
-  white-space:nowrap;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
 }
+.sync-badge svg{width:18px;height:18px;display:block}
 .sync-badge.synced{background:rgba(61,122,94,.15);color:#2f6249}
 .sync-badge.syncing{background:rgba(58,107,155,.15);color:#185aa0}
 .sync-badge.error{background:rgba(155,58,58,.15);color:#9b3a3a}
@@ -1805,7 +1806,7 @@ input,select,textarea{font-family:inherit}
     </button>
   </nav>
   <div style="display:flex;align-items:center;gap:10px">
-    <span id="sync-status" class="sync-badge offline">💻 Offline</span>
+    <span id="sync-status" class="sync-badge offline" title="Offline (localStorage)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
     <!-- User badge — visibile dopo il login -->
     <div id="user-badge" onclick="if(confirm('Vuoi uscire?')) window._firebase?.signOut()">
       <div class="user-avatar">
