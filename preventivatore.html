@@ -2348,6 +2348,26 @@ function saveState(){
 }
 
 async function loadState(){
+  // Controlla se c'è un reset pendente (richiesto prima del reload)
+  const resetPending = localStorage.getItem(STORAGE_KEY + '_reset_pending');
+  if(resetPending){
+    localStorage.removeItem(STORAGE_KEY + '_reset_pending');
+    const emptyState = {
+      preventivi: [],
+      lastOpenedId: null,
+      categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES_BUILTIN)),
+      customLibrary: [],
+      companyDefaults: {...COMPANY_DEFAULTS_BUILTIN},
+      priceMemory: {},
+      usageCount: {}
+    };
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState)); }catch(e){}
+    if(window._firebase && window._firebase.ready()){
+      try{ await window._firebase.save(emptyState); }catch(e){}
+    }
+    return; // lascia lo state ai valori di default vuoti
+  }
+
   let data = null;
 
   // 1. Prova Firebase (fonte principale)
@@ -2809,6 +2829,8 @@ function resetAllData(){
     if(conferma !== null) showToast('Testo non corretto. Operazione annullata.','warning');
     return;
   }
+  // Segna il reset pendente e ricarica: la pulizia Firebase avverrà all'avvio
+  try{ localStorage.setItem(STORAGE_KEY + '_reset_pending', '1'); }catch(e){}
   try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
   location.reload();
 }
