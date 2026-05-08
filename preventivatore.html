@@ -2132,11 +2132,11 @@ const STORAGE_KEY = 'preventivo_edile_v3';
 const UNITS = ['corpo','mq','ml','pz','kg','mc','h','m'];
 
 const COMPANY_DEFAULTS_BUILTIN = {
-  nome:'Ditta Pietro di Zbercea Petru',
-  piva:'10899430010',
-  phone:'348 850 9758',
-  addr:'Via Reano n°12, Buttigliera Alta (TO)',
-  email:'pietroedile@yahoo.com'
+  nome:'',
+  piva:'',
+  phone:'',
+  addr:'',
+  email:''
 };
 
 const DEFAULT_CATEGORIES_BUILTIN = [
@@ -2346,7 +2346,7 @@ async function loadState(){
     if(data.lastOpenedId) state.lastOpenedId = data.lastOpenedId;
     if(data.categories && data.categories.length) state.categories = data.categories;
     if(data.customLibrary) state.customLibrary = data.customLibrary;
-    if(data.companyDefaults) state.companyDefaults = {...COMPANY_DEFAULTS_BUILTIN, ...data.companyDefaults};
+    if(data.companyDefaults) state.companyDefaults = {...data.companyDefaults};
     if(data.priceMemory) state.priceMemory = data.priceMemory;
     if(data.usageCount) state.usageCount = data.usageCount;
     // Migrazione: ogni preventivo deve avere catSubtotal + pdf flags
@@ -2607,6 +2607,7 @@ function newPreventivo(tipo='preventivo', sourceId=null){
         eseguito: true,
         origin: 'preventivo'
       }));
+      p.acconti = (src.acconti||[]).map(a => ({...a, id: genId('acc')}));
       // Cross-link
       src.linkedConsuntivoId = p.id;
     }
