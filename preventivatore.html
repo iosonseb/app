@@ -841,7 +841,16 @@ input,select,textarea{font-family:inherit}
   display:flex;align-items:center;gap:6px;
   justify-content:center;
 }
-.cell-with-toggle .price-input{text-align:center}
+.cell-with-toggle .price-input{text-align:right;padding-left:22px}
+/* simbolo € dentro la casella prezzo */
+.euro-wrap{position:relative;display:inline-flex;align-items:center}
+.euro-wrap::before{
+  content:'€';
+  position:absolute;left:8px;
+  font-size:12px;color:var(--muted-soft);font-weight:600;
+  pointer-events:none;z-index:1;
+}
+.euro-wrap input{padding-left:22px}
 .cell-with-toggle .item-total{text-align:center;min-width:80px;display:inline-block}
 .qty-input{text-align:center;margin:0 auto;display:block}
 
@@ -1149,7 +1158,7 @@ input,select,textarea{font-family:inherit}
   outline:none;background:white;width:100%;
 }
 .acconti-table input:focus{border-color:var(--accent)}
-.acconti-table .acc-importo{text-align:right;font-feature-settings:"tnum"}
+.acconti-table .acc-importo{text-align:right;font-feature-settings:"tnum";padding-left:22px}
 .acconti-summary{
   padding:14px 18px;background:var(--cream);
   display:flex;justify-content:space-between;
@@ -1818,7 +1827,6 @@ input,select,textarea{font-family:inherit}
   .cell-qty{grid-area:qty}
   .cell-unit{grid-area:unit}
   .cell-price{grid-area:price;justify-content:flex-end}
-  .cell-price::before{content:'€';font-size:12px;color:var(--muted);font-weight:600;margin-right:4px;align-self:center}
   .cell-total{grid-area:total}
   .cell-del{grid-area:del;justify-content:flex-end}
   .item-total{font-size:15px;font-weight:700}
@@ -3563,10 +3571,10 @@ function renderItemRow(item, idx, isCons){
       </td>
       <td class="center cell-price">
         <div class="cell-with-toggle">
-          <input class="price-input${(!item.price && item.price!==undefined)?'':''}" type="number" min="0" step="any" value="${item.price??''}"
+          <div class="euro-wrap"><input class="price-input${(!item.price && item.price!==undefined)?'':''}" type="number" min="0" step="any" value="${item.price??''}"
             placeholder="0,00" onchange="updateItem('${item.id}','price',this.value)"
             style="${!item.price?'color:var(--danger);border-color:#f3d6d6;background:#fef4f4':''}"
-            oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'">
+            oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'"></div>
           <label class="show-cb-label" onclick="event.stopPropagation()" title="Mostra nel preventivo">
             <input type="checkbox" class="show-cb" ${item.showPrice?'checked':''}
               onchange="updateItem('${item.id}','showPrice',this.checked)">
@@ -4342,7 +4350,7 @@ function renderAcconti(){
             <tr>
               <td><input type="date" value="${a.data||''}" onchange="updateAcconto('${a.id}','data',this.value)"></td>
               <td><input type="text" value="${escHtml(a.numero||'')}" onchange="updateAcconto('${a.id}','numero',this.value)" placeholder="es. Acconto 1 — fattura n.5/2025"></td>
-              <td><input type="number" min="0" step="any" value="${a.importo??''}" onchange="updateAcconto('${a.id}','importo',this.value)" placeholder="0,00" class="acc-importo"></td>
+              <td><div class="euro-wrap"><input type="number" min="0" step="any" value="${a.importo??''}" onchange="updateAcconto('${a.id}','importo',this.value)" placeholder="0,00" class="acc-importo"></div></td>
               <td><button class="btn-icon danger" onclick="removeAcconto('${a.id}')" title="Rimuovi">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
               </button></td>
