@@ -1796,25 +1796,25 @@ input,select,textarea{font-family:inherit}
   .items-table thead{display:none}
   .items-table tbody tr{
     display:grid;
-    grid-template-columns:auto auto 1fr auto;
-    grid-template-rows:auto auto auto;
+    grid-template-columns:1fr 1fr;
     grid-template-areas:
-      "desc  desc  desc  eseg"
-      "qty   unit  price price"
-      "total total total del";
+      "desc  eseg"
+      "qty   unit"
+      "price price"
+      "total del";
     border:1.5px solid var(--border-soft);
     border-radius:10px;
     margin-bottom:10px;
     padding:10px 12px;
     background:white;
     box-shadow:var(--shadow-sm);
-    column-gap:8px;row-gap:6px;
+    column-gap:8px;row-gap:8px;
   }
   .items-table tbody tr:hover{background:white}
   .items-table td{padding:0;border:none;font-size:13px;display:flex;align-items:center}
 
-  .drag-handle-cell{display:none}
-  .idx-cell{display:none}
+  .drag-handle-cell{display:none !important}
+  .idx-cell{display:none !important}
 
   .cell-desc{
     grid-area:desc;
@@ -1823,10 +1823,12 @@ input,select,textarea{font-family:inherit}
     border-bottom:1px solid var(--border-soft);
     align-items:flex-start;
   }
-  .cell-eseguito{grid-area:eseg;justify-content:flex-end}
+  .cell-eseguito{grid-area:eseg;justify-content:flex-end;padding-bottom:8px;border-bottom:1px solid var(--border-soft);}
   .cell-qty{grid-area:qty}
-  .cell-unit{grid-area:unit}
-  .cell-price{grid-area:price;justify-content:flex-end}
+  .cell-unit{grid-area:unit;justify-content:flex-end}
+  .cell-price{grid-area:price}
+  .cell-price .euro-wrap{width:100%}
+  .cell-price .euro-wrap .price-input{width:100%}
   .cell-total{grid-area:total}
   .cell-del{grid-area:del;justify-content:flex-end}
   .item-total{font-size:15px;font-weight:700}
