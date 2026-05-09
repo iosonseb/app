@@ -1729,7 +1729,21 @@ input,select,textarea{font-family:inherit}
 ═══════════════════════════════════ */
 @media(max-width:880px){
   .picker-layout{flex-direction:column}
-  .picker-side{width:100%;border-left:none;border-top:1.5px solid var(--border-soft);max-height:38vh}
+  .picker-side{
+    width:100%;border-left:none;border-top:1.5px solid var(--border-soft);
+    flex-shrink:0;
+    /* altezza fissa: solo header visibile di default */
+    max-height:48px;
+    overflow:hidden;
+    transition:max-height .25s ease;
+  }
+  .picker-side.expanded{max-height:38vh}
+  .picker-side-header{cursor:pointer;user-select:none}
+  .picker-side-header::after{
+    content:'▲';font-size:10px;color:var(--muted);
+    transition:transform .2s;display:inline-block;
+  }
+  .picker-side.expanded .picker-side-header::after{transform:rotate(180deg)}
 }
 
 /* ═══════════════════════════════════
@@ -2244,6 +2258,12 @@ service cloud.firestore {
         </div>
         <div class="picker-side-list" id="picker-side-list"></div>
       </aside>
+      <script>
+        document.querySelector('.picker-side-header').addEventListener('click', function(){
+          const side = this.closest('.picker-side');
+          if(window.innerWidth <= 880) side.classList.toggle('expanded');
+        });
+      </script>
     </div>
   </div>
 </div>
@@ -3854,6 +3874,10 @@ function renderPickerSidebar(){
     (state.pickerAddingExtras ? i.origin==='extra' : i.origin!=='extra' || p.tipo==='preventivo')
   );
   countEl.textContent = items.length;
+  // Su mobile: espandi automaticamente alla prima voce aggiunta
+  if(items.length > 0 && window.innerWidth <= 880){
+    document.querySelector('.picker-side')?.classList.add('expanded');
+  }
   if(!items.length){
     cont.innerHTML = '<div class="side-empty">Nessuna voce ancora aggiunta a questa categoria.</div>';
     return;
