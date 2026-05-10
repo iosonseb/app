@@ -1443,11 +1443,21 @@ input,select,textarea{font-family:inherit}
 }
 .picker-custom-form input:focus{border-color:var(--accent)}
 .picker-custom-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.picker-save-toggle{
-  display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);
-  flex:1;cursor:pointer;
+.picker-save-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:12.5px;font-weight:500;font-family:inherit;
+  padding:6px 12px;border-radius:8px;cursor:pointer;
+  border:1.5px solid var(--border);
+  background:white;color:var(--muted);
+  transition:all .15s;flex:1;justify-content:center;
 }
-.picker-save-toggle input{width:14px;height:14px;accent-color:var(--accent)}
+.picker-save-btn:hover{border-color:var(--accent);color:var(--accent)}
+.picker-save-btn.active{
+  background:var(--success-light);
+  border-color:var(--success);
+  color:var(--success);
+  font-weight:600;
+}
 
 /* ─── CATEGORY MANAGER ─── */
 .cat-mgr-list{display:flex;flex-direction:column;gap:8px}
@@ -2143,11 +2153,11 @@ service cloud.firestore {
       <div class="form-grid">
         <div class="form-group">
           <label>Nome Cliente / Riferimento</label>
-          <input type="text" id="f-client" oninput="setClientField('nome',this.value)">
+          <input type="text" id="f-client" oninput="setClientField('nome',this.value);this.style.borderColor=this.value.trim()?'':'var(--danger)';this.style.background=this.value.trim()?'':'#fef4f4'">
         </div>
         <div class="form-group">
           <label>Indirizzo Cantiere</label>
-          <input type="text" id="f-site" oninput="setClientField('sito',this.value)">
+          <input type="text" id="f-site" oninput="setClientField('sito',this.value);this.style.borderColor=this.value.trim()?'':'var(--danger)';this.style.background=this.value.trim()?'':'#fef4f4'">
         </div>
         <div class="form-group">
           <label>Email Cliente</label>
@@ -2286,7 +2296,10 @@ service cloud.firestore {
     <div class="modal-header">
       <h2>Aggiungi Voce</h2>
       <div class="modal-header-actions">
-        <button class="btn-close-modal" onclick="closePicker()">✕</button>
+        <button class="btn btn-primary btn-sm" onclick="closePicker()" style="background:var(--accent);border-color:var(--accent);gap:6px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+          Fatto
+        </button>
       </div>
     </div>
     <div class="picker-target-banner" id="picker-target-banner"></div>
@@ -2310,13 +2323,12 @@ service cloud.firestore {
           </div>
           <div class="picker-custom-form">
             <input type="text" id="picker-custom-desc" placeholder="Descrizione della nuova voce..." onkeydown="if(event.key==='Enter')addCustomFromPicker()">
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <select id="picker-custom-unit" style="width:90px;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;background:white;outline:none;font-family:inherit"></select>
-            </div>
             <div class="picker-custom-actions">
-              <label class="picker-save-toggle">
-                <input type="checkbox" id="picker-custom-save"> Salva nella libreria
-              </label>
+              <button type="button" class="picker-save-btn" id="picker-save-btn" onclick="toggleSaveToLibrary()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                Salva nella libreria
+              </button>
+              <input type="checkbox" id="picker-custom-save" style="display:none">
               <button class="btn btn-primary btn-sm" onclick="addCustomFromPicker()">+ Aggiungi voce</button>
             </div>
           </div>
@@ -3345,8 +3357,14 @@ function fillSetupForm(){
   document.getElementById('f-phone').value = p.company.phone || '';
   document.getElementById('f-addr').value = p.company.addr || '';
   document.getElementById('f-email').value = p.company.email || '';
-  document.getElementById('f-client').value = p.client.nome || '';
-  document.getElementById('f-site').value = p.client.sito || '';
+  const fClient = document.getElementById('f-client');
+  const fSite   = document.getElementById('f-site');
+  fClient.value = p.client.nome || '';
+  fSite.value   = p.client.sito || '';
+  fClient.style.borderColor = p.client.nome?.trim() ? '' : 'var(--danger)';
+  fClient.style.background  = p.client.nome?.trim() ? '' : '#fef4f4';
+  fSite.style.borderColor   = p.client.sito?.trim() ? '' : 'var(--danger)';
+  fSite.style.background    = p.client.sito?.trim() ? '' : '#fef4f4';
   document.getElementById('f-client-email').value = p.client.email || '';
   document.getElementById('f-client-phone').value = p.client.phone || '';
   document.getElementById('f-title').value = p.client.titolo || '';
@@ -4020,9 +4038,10 @@ function updateItem(id, field, value){
   }else{
     item[field] = value;
   }
-  // Se l'unità diventa "corpo" imposta automaticamente qty=1
-  if(field==='unit' && value==='corpo'){
-    item.qty = 1;
+  // Gestione unità "corpo": forza qty=1 e ri-renderizza la riga per abilitare/disabilitare il campo
+  if(field==='unit'){
+    if(value==='corpo') item.qty = 1;
+    refreshCategorySection(item.cat);
   }
   // Memoria prezzo/unit: salva quando price o unit cambiano
   if((field==='price' || field==='unit') && item._memKey){
@@ -4181,7 +4200,7 @@ function openPicker(targetCatId, asExtra=false){
   state.pickerAddingExtras = !!asExtra;
   document.getElementById('picker-search').value = '';
   document.getElementById('picker-custom-desc').value = '';
-  document.getElementById('picker-custom-save').checked = false;
+  resetSaveToLibrary();
   const cat = getCategoryById(targetCatId);
   populatePickerCustomUnit('corpo');
   const extraSuffix = asExtra ? ' come <strong>opera extra</strong>' : '';
@@ -4414,6 +4433,28 @@ function addItemFromPicker(libId){
   showToast('Voce aggiunta');
 }
 
+function toggleSaveToLibrary(){
+  const btn = document.getElementById('picker-save-btn');
+  const cb  = document.getElementById('picker-custom-save');
+  if(!btn) return;
+  const nowActive = !btn.classList.contains('active');
+  btn.classList.toggle('active', nowActive);
+  if(cb) cb.checked = nowActive;
+  btn.innerHTML = nowActive
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg> La voce verrà salvata nella libreria`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Salva nella libreria`;
+}
+
+function resetSaveToLibrary(){
+  const btn = document.getElementById('picker-save-btn');
+  const cb  = document.getElementById('picker-custom-save');
+  if(btn){
+    btn.classList.remove('active');
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Salva nella libreria`;
+  }
+  if(cb) cb.checked = false;
+}
+
 function togglePickerCustom(){
   const panel = document.getElementById('picker-custom-panel');
   const btn   = document.getElementById('picker-custom-toggle-btn');
@@ -4432,7 +4473,7 @@ function addCustomFromPicker(){
   if(!state.pickerTargetCatId) return;
   const save = document.getElementById('picker-custom-save').checked;
   const targetCatId = state.pickerTargetCatId;
-  const unit = document.getElementById('picker-custom-unit').value || 'corpo';
+  const unit = 'corpo';
   const obj = { id: genId('custom'), cat: targetCatId, desc: desc, unit: unit };
   if(save){
     state.customLibrary.push(obj);
@@ -4443,7 +4484,7 @@ function addCustomFromPicker(){
   refreshCategorySection(state.pickerTargetCatId);
   recalcAll();
   document.getElementById('picker-custom-desc').value = '';
-  document.getElementById('picker-custom-save').checked = false;
+  resetSaveToLibrary();
   renderPickerSidebar();
   if(save) renderPickerItems();
   // Chiudi il pannello dopo l'aggiunta
