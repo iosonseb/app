@@ -4542,10 +4542,11 @@ function renderPickerItems(){
     return;
   }
   const p = getCurrentPrev();
-  // Per le opere extra non evidenziare le voci già presenti (si possono aggiungere più volte)
-  const addedLibIds = state.pickerAddingExtras
-    ? new Set()
-    : new Set((p?.items||[]).map(i=>i.libId).filter(Boolean));
+  // Per le opere extra considera solo gli item già aggiunti come extra (non quelli origin=preventivo)
+  const relevantItems = state.pickerAddingExtras
+    ? (p?.items||[]).filter(i=>i.origin==='extra')
+    : (p?.items||[]);
+  const addedLibIds = new Set(relevantItems.map(i=>i.libId).filter(Boolean));
   cont.innerHTML = items.map(it => {
     const cat = getCategoryById(it.cat);
     const catName = cat?cat.name:'?';
@@ -4790,19 +4791,19 @@ function addItemFromPicker(libId){
   if(!state.pickerTargetCatId) return;
   const p = getCurrentPrev();
   if(!p) return;
-  // Per le opere extra si può aggiungere la stessa voce più volte (no toggle)
-  if(!state.pickerAddingExtras){
-    const existing = p.items.find(i=>i.libId===libId);
-    if(existing){
-      p.items = p.items.filter(i=>i.id!==existing.id);
-      saveState();
-      refreshCategorySection(existing.cat);
-      recalcAll();
-      renderPickerSidebar();
-      renderPickerItems();
-      showToast('Voce rimossa');
-      return;
-    }
+  // Toggle: rimuovi se già presente (per extra: cerca solo tra gli item extra)
+  const existing = p.items.find(i =>
+    i.libId===libId && (state.pickerAddingExtras ? i.origin==='extra' : true)
+  );
+  if(existing){
+    p.items = p.items.filter(i=>i.id!==existing.id);
+    saveState();
+    refreshCategorySection(existing.cat);
+    recalcAll();
+    renderPickerSidebar();
+    renderPickerItems();
+    showToast('Voce rimossa');
+    return;
   }
   addItem(state.pickerTargetCatId, libItem);
   refreshCategorySection(state.pickerTargetCatId);
