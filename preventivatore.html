@@ -4322,7 +4322,7 @@ function renderPickerSidebar(){
           <div class="side-item-desc">${escHtml(it.desc.slice(0,90))}${it.desc.length>90?'…':''}</div>
           <div class="side-item-meta">${it.qty??'—'} ${it.unit}${it.price?' × '+fmtCur(it.price):''}${tot>0?' = '+fmtCur(tot):''}${it.origin==='extra'?' · EXTRA':''}</div>
         </div>
-        <button class="side-item-rm" onclick="removeItem('${it.id}');renderPickerSidebar();" title="Rimuovi">✕</button>
+        <button class="side-item-rm" onclick="removeItem('${it.id}');renderPickerSidebar();renderPickerItems();" title="Rimuovi">✕</button>
       </div>`;
   }).join('');
 }
@@ -4368,13 +4368,16 @@ function renderPickerItems(){
     </div>`;
     return;
   }
+  const p = getCurrentPrev();
+  const addedLibIds = new Set((p?.items||[]).map(i=>i.libId).filter(Boolean));
   cont.innerHTML = items.map(it => {
     const cat = getCategoryById(it.cat);
     const catName = cat?cat.name:'?';
     const catColor = cat?cat.color:'#888';
     const isCustom = it.id.startsWith('custom_');
+    const isAdded  = addedLibIds.has(it.id);
     return `
-      <div class="picker-item" id="pi-${it.id}">
+      <div class="picker-item${isAdded?' picker-item-added':''}" id="pi-${it.id}">
         <div class="picker-item-text" onclick="addItemFromPicker('${it.id}')">
           <div class="picker-item-cat" id="pi-cat-${it.id}" style="color:${catColor}">${escHtml(catName)}</div>
           <div class="picker-item-desc" id="pi-desc-${it.id}">${escHtml(it.desc)}</div>
@@ -4473,13 +4476,7 @@ function addItemFromPicker(libId){
   refreshCategorySection(state.pickerTargetCatId);
   recalcAll();
   renderPickerSidebar();
-  // Evidenzia in verde la voce aggiunta senza re-render completo
-  const el = document.getElementById('pi-'+libId);
-  if(el){
-    el.classList.add('picker-item-added');
-  } else {
-    renderPickerItems();
-  }
+  renderPickerItems();
   showToast('Voce aggiunta');
 }
 
@@ -4929,11 +4926,24 @@ function recalcAll(){
   const p = getCurrentPrev();
   if(!p) return;
 
-  // Update category totals
-  state.categories.forEach(c => {
-    const el = document.getElementById('cat-total-'+c.id);
-    if(!el) return;
-    const tot = calcCategoryTotal(c.id);
+  // Update category totals (gestisce sia preventivi che consuntivi con suffisso _preventivo/_extra)
+  document.querySelectorAll('.cat-total').forEach(el => {
+    const raw = el.id.replace('cat-total-','');
+    let catId, isExtra;
+    if(raw.endsWith('_preventivo')){
+      catId   = raw.slice(0, -'_preventivo'.length);
+      isExtra = false;
+    } else if(raw.endsWith('_extra')){
+      catId   = raw.slice(0, -'_extra'.length);
+      isExtra = true;
+    } else {
+      catId   = raw;
+      isExtra = false;
+    }
+    const tot = isExtra
+      ? p.items.filter(i=>i.cat===catId && i.origin==='extra')
+               .reduce((s,it)=>s+(it.qty||0)*(it.price||0), 0)
+      : calcCategoryTotal(catId);
     el.textContent = tot>0 ? fmtCur(tot) : '';
     el.style.display = tot>0 ? '' : 'none';
   });
