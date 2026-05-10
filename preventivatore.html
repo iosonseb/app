@@ -414,18 +414,17 @@ input,select,textarea{font-family:inherit}
 }
 .tab-btn.active .tab-num{background:rgba(255,255,255,.25);color:white}
 .btn-resume{
-  background:var(--accent);
-  color:white;border:none;
-  padding:8px 18px;border-radius:8px;
-  font-size:13px;font-weight:600;
+  background:rgba(138,128,112,.08);
+  color:var(--ink-soft);border:1.5px solid var(--border-soft);
+  padding:8px 16px;border-radius:8px;
+  font-size:13px;font-weight:500;
   display:inline-flex;align-items:center;gap:8px;
   transition:var(--transition);
-  box-shadow:0 2px 8px rgba(200,131,59,.3);
   cursor:pointer;
 }
-.btn-resume:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.btn-resume:hover{background:rgba(138,128,112,.14);border-color:var(--border)}
 .btn-resume .btn-resume-meta{
-  font-size:10.5px;opacity:.85;font-weight:500;
+  font-size:10px;opacity:.65;font-weight:400;
 }
 
 /* header sync area */
@@ -2824,6 +2823,22 @@ async function loadState(){
         if(it.qty==null && p.tipo) it.qty = 1;
         if(it.unit==='corpo') it.qty = 1; // corpo è sempre qty=1
       });
+      // Migrazione: ricostruisci sourceItemId per consuntivi collegati senza questo campo
+      if(p.tipo==='consuntivo' && p.sourceId){
+        const src = state.preventivi.find(x=>x.id===p.sourceId);
+        if(src){
+          p.items.forEach(consItem=>{
+            if(consItem.origin==='preventivo' && !consItem.sourceItemId){
+              // Cerca corrispondenza per libId o descrizione
+              const match = src.items.find(si =>
+                (si.libId && si.libId===consItem.libId) ||
+                si.desc===consItem.desc
+              );
+              if(match) consItem.sourceItemId = match.id;
+            }
+          });
+        }
+      }
     });
     // Migrazione: aggiorna nomi categorie predefinite + ripristina mancanti (es. elettrico cancellato)
     const _catUpdates = {
@@ -3073,6 +3088,7 @@ function newPreventivo(tipo='preventivo', sourceId=null){
       p.items = src.items.map(it => ({
         ...it,
         id: genId('item'),
+        sourceItemId: it.id,
         eseguito: true,
         origin: 'preventivo'
       }));
@@ -3872,6 +3888,13 @@ function renderBuilder(){
   if(p.tipo==='consuntivo'){
     // Sezione "lavori da preventivo": tutte le categorie con items origin='preventivo' (anche vuote stay coerenti)
     const mainCats = state.categories.filter(c => p.items.some(i => i.cat===c.id && (i.origin||'preventivo')==='preventivo'));
+    const linkedPrev = p.sourceId ? state.preventivi.find(x=>x.id===p.sourceId) : null;
+    const infoBanner = linkedPrev ? `
+      <div style="display:flex;align-items:center;gap:10px;background:var(--info-light);border:1.5px solid #c3d9f0;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:var(--info)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+        <span>Le voci dei <strong>Lavori da Preventivo</strong> sono sincronizzate con il preventivo origine (<strong>${escHtml(formatDocNumber(linkedPrev))}</strong>) e non sono modificabili qui. Modifica prezzi e quantità nel preventivo — il consuntivo si aggiornerà automaticamente. Puoi solo segnare le voci come "non eseguite" (✕).
+        <button class="btn btn-ghost btn-sm" style="margin-left:8px;font-size:11px" onclick="openPreventivo('${linkedPrev.id}')">→ Vai al preventivo</button></span>
+      </div>` : '';
     const mainHtml = mainCats.length
       ? mainCats.map(cat => renderCategorySection(cat, {onlyOrigin:'preventivo'})).join('')
       : `<div class="card" style="text-align:center;color:var(--muted);padding:30px"><em>Nessun lavoro da preventivo. Le voci copiate dal preventivo origine appariranno qui.</em></div>`;
@@ -3891,7 +3914,7 @@ function renderBuilder(){
           <span class="plus">＋</span> Aggiungi opera extra
         </button>
       </div>`;
-    cont.innerHTML = mainHtml + extraHtml;
+    cont.innerHTML = infoBanner + mainHtml + extraHtml;
   } else {
     cont.innerHTML = state.categories.map(cat => renderCategorySection(cat)).join('');
   }
@@ -4039,6 +4062,9 @@ function renderItemsTable(items, onlyOrigin){
 function renderItemRow(item, idx, isCons, canDelete=true){
   const total = calcItem(item);
   const notExec = isCons && item.eseguito===false;
+  // Voci origin='preventivo' nel consuntivo: readonly su qty/price/unit/desc
+  const isConsLocked = isCons && (item.origin||'preventivo')==='preventivo';
+  const readonlyStyle = isConsLocked ? 'opacity:.5;cursor:not-allowed;pointer-events:none;background:var(--cream)' : '';
   return `
     <tr id="row-${item.id}" class="${notExec?'not-eseguito':''}"
         draggable="true"
@@ -4059,18 +4085,18 @@ function renderItemRow(item, idx, isCons, canDelete=true){
           ${notExec?'✕':'✓'}
         </button>
       </td>`:''}
-      <td class="desc-cell cell-desc" onclick="editItemDesc('${item.id}')" id="desc-${item.id}">
+      <td class="desc-cell cell-desc" ${isConsLocked?'':'onclick="editItemDesc(\''+item.id+'\')"'} id="desc-${item.id}">
         <span class="desc-text">${escHtml(item.desc)}</span>
-        <span class="edit-pencil">✎</span>
+        ${isConsLocked ? `<span title="Voce dal preventivo — modificabile solo nel preventivo" style="font-size:10px;color:var(--muted-soft);margin-left:6px">🔒</span>` : `<span class="edit-pencil">✎</span>`}
       </td>
       <td class="center cell-unit">
-        <select class="unit-select" onchange="updateItem('${item.id}','unit',this.value)">
+        <select class="unit-select" onchange="updateItem('${item.id}','unit',this.value)" style="${readonlyStyle}" ${isConsLocked?'disabled':''}>
           ${UNITS.map(u=>`<option value="${u}" ${item.unit===u?'selected':''}>${u}</option>`).join('')}
         </select>
       </td>
       <td class="center cell-qty">
-        ${item.unit==='corpo'
-          ? `<input class="qty-input" type="number" value="1" readonly
+        ${(item.unit==='corpo' || isConsLocked)
+          ? `<input class="qty-input" type="number" value="${isConsLocked ? (item.qty??1) : 1}" readonly
                style="opacity:.4;cursor:not-allowed;background:var(--cream);pointer-events:none">`
           : `<input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
                placeholder="0" onchange="updateItem('${item.id}','qty',this.value)">`}
@@ -4080,8 +4106,8 @@ function renderItemRow(item, idx, isCons, canDelete=true){
         <div class="cell-with-toggle">
           <div class="euro-wrap"><input class="price-input${(!item.price && item.price!==undefined)?'':''}" type="number" min="0" step="any" value="${item.price??''}"
             placeholder="0,00" onchange="updateItem('${item.id}','price',this.value)"
-            style="${!item.price?'color:var(--danger);border-color:#f3d6d6;background:#fef4f4':''}"
-            oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'"></div>
+            style="${isConsLocked ? readonlyStyle : (!item.price?'color:var(--danger);border-color:#f3d6d6;background:#fef4f4':'')}"
+            ${isConsLocked ? 'readonly' : `oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'"`}></div>
           <button class="eye-btn${item.showPrice?' eye-open':' eye-closed'}"
             onclick="event.stopPropagation();updateItem('${item.id}','showPrice',${!item.showPrice})"
             title="${item.showPrice?'Nascondi dal PDF':'Mostra nel PDF'}">
@@ -4156,6 +4182,10 @@ function addItem(catId, libItem){
   if(cur && cur.tipo==='consuntivo') newItem.origin = 'extra';
   newItem._memKey = memKey;
   p.items.push(newItem);
+  // Propaga al consuntivo collegato (solo se siamo nel preventivo e la voce è origin='preventivo')
+  if(p.tipo==='preventivo' && p.linkedConsuntivoId && newItem.origin==='preventivo'){
+    syncAddItemToConsuntivo(p, newItem);
+  }
   saveState();
 }
 
@@ -4164,7 +4194,16 @@ function removeItem(id){
   if(!p) return;
   const item = getItemById(id);
   if(!item) return;
+  // Blocca rimozione di voci origin='preventivo' nel consuntivo
+  if(p.tipo==='consuntivo' && (item.origin||'preventivo')==='preventivo'){
+    showToast('Questa voce proviene dal preventivo e non può essere eliminata dal consuntivo.','warning');
+    return;
+  }
   p.items = p.items.filter(i=>i.id!==id);
+  // Propaga rimozione al consuntivo collegato
+  if(p.tipo==='preventivo' && p.linkedConsuntivoId){
+    syncRemoveItemFromConsuntivo(p, id);
+  }
   saveState();
   refreshCategorySection(item.cat);
   recalcAll();
@@ -4174,6 +4213,14 @@ function removeItem(id){
 function updateItem(id, field, value){
   const item = getItemById(id);
   if(!item) return;
+  const p = getCurrentPrev();
+
+  // Blocca modifica di qty/price/unit/desc per voci origin='preventivo' nel consuntivo
+  if(p && p.tipo==='consuntivo' && (item.origin||'preventivo')==='preventivo'){
+    const blockedFields = ['qty','price','unit','desc'];
+    if(blockedFields.includes(field)) return;
+  }
+
   if(field==='qty' || field==='price'){
     item[field] = (value===''||value==null) ? null : parseFloat(value);
   }else if(field==='showPrice' || field==='showTotal'){
@@ -4196,11 +4243,52 @@ function updateItem(id, field, value){
   }
   const tcell = document.getElementById('total-'+id);
   if(tcell) tcell.textContent = fmtCur(calcItem(item));
+
+  // Propaga modifiche al consuntivo collegato (se siamo nel preventivo)
+  if(p && p.tipo==='preventivo' && p.linkedConsuntivoId){
+    syncItemToConsuntivo(p, id, field, item[field]);
+  }
+
   saveState();
   recalcAll();
 }
 
-function toggleEseguito(id){
+function syncItemToConsuntivo(prev, prevItemId, field, value){
+  const cons = state.preventivi.find(x=>x.id===prev.linkedConsuntivoId);
+  if(!cons) return;
+  // Trova l'item nel consuntivo che corrisponde all'item del preventivo
+  const consItem = cons.items.find(ci => ci.sourceItemId===prevItemId && (ci.origin||'preventivo')==='preventivo');
+  if(!consItem) return;
+  const syncFields = ['qty','price','unit','desc','cat','showPrice','showTotal'];
+  if(!syncFields.includes(field)) return;
+  if(field==='qty' || field==='price'){
+    consItem[field] = value;
+  } else {
+    consItem[field] = value;
+  }
+  if(field==='unit' && value==='corpo') consItem.qty = 1;
+}
+
+function syncAddItemToConsuntivo(prev, newItem){
+  const cons = state.preventivi.find(x=>x.id===prev.linkedConsuntivoId);
+  if(!cons) return;
+  const copy = {
+    ...newItem,
+    id: genId('item'),
+    sourceItemId: newItem.id,
+    eseguito: true,
+    origin: 'preventivo'
+  };
+  cons.items.push(copy);
+}
+
+function syncRemoveItemFromConsuntivo(prev, prevItemId){
+  const cons = state.preventivi.find(x=>x.id===prev.linkedConsuntivoId);
+  if(!cons) return;
+  cons.items = cons.items.filter(ci => !(ci.sourceItemId===prevItemId && (ci.origin||'preventivo')==='preventivo'));
+}
+
+
   const item = getItemById(id);
   if(!item) return;
   item.eseguito = item.eseguito===false ? true : false;
@@ -4226,8 +4314,18 @@ function editItemDesc(id){
 function saveItemDesc(id, value){
   const item = getItemById(id);
   if(!item) return;
+  const p = getCurrentPrev();
+  // Blocca modifica descrizione per voci origin='preventivo' nel consuntivo
+  if(p && p.tipo==='consuntivo' && (item.origin||'preventivo')==='preventivo'){
+    refreshCategorySection(item.cat);
+    return;
+  }
   const v = (value||'').trim();
   if(v) item.desc = v;
+  // Propaga al consuntivo collegato
+  if(p && p.tipo==='preventivo' && p.linkedConsuntivoId){
+    syncItemToConsuntivo(p, id, 'desc', item.desc);
+  }
   saveState();
   refreshCategorySection(item.cat);
 }
