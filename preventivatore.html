@@ -4044,10 +4044,11 @@ function renderItemRow(item, idx, isCons, canDelete=true){
         ondragend="dragEnd(event)"
         ondragover="dragOver(event,'${item.id}')"
         ondragleave="dragLeave(event)"
-        ondrop="drop(event,'${item.id}')">
-      <td class="drag-handle-cell" title="Trascina per riordinare"
-          ontouchstart="touchDragStart(event,'${item.id}')"
-          ontouchend="touchDragEnd(event)">
+        ondrop="drop(event,'${item.id}')"
+        ontouchstart="touchItemStart(event,'${item.id}')"
+        ontouchend="touchItemEnd(event)"
+        ontouchcancel="touchItemEnd(event)">
+      <td class="drag-handle-cell" title="Trascina per riordinare">
         <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
       </td>
       <td class="idx-cell">${idx+1}</td>
@@ -4277,37 +4278,44 @@ function updatePdfPricesLabel(){
 // ═══════════════════════════════════════════════
 let dragSrcId = null;
 
-// ── Touch drag (mobile) ──
-let touchDragSrcId  = null;
-let touchDragStartY = 0;
-let touchDragStartX = 0;
-let touchDragActive = false;
+// ── Touch drag (mobile) — long press ovunque sulla card ──
+let touchDragSrcId      = null;
+let touchDragStartY     = 0;
+let touchDragStartX     = 0;
+let touchDragActive     = false;
+let touchDragLPTimer    = null; // long-press timer
 
-function touchDragStart(e, id){
+function touchItemStart(e, id){
   if(e.touches.length !== 1) return;
+  // Ignora se il punto di contatto è su un elemento interattivo
+  if(e.target.closest('button,input,select,a,textarea')) return;
   touchDragSrcId  = id;
   touchDragStartY = e.touches[0].clientY;
   touchDragStartX = e.touches[0].clientX;
   touchDragActive = false;
+  // Attiva drag dopo 300 ms di pressione ferma
+  touchDragLPTimer = setTimeout(()=>{
+    touchDragLPTimer = null;
+    if(!touchDragSrcId) return;
+    touchDragActive = true;
+    document.getElementById('row-'+id)?.classList.add('dragging');
+    if(navigator.vibrate) navigator.vibrate(25); // feedback aptico
+  }, 300);
 }
 
 function _touchDragMove(e){
   if(!touchDragSrcId) return;
   const dy = e.touches[0].clientY - touchDragStartY;
   const dx = e.touches[0].clientX - touchDragStartX;
-  if(!touchDragActive){
-    if(Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)){
-      touchDragActive = true;
-      document.getElementById('row-'+touchDragSrcId)?.classList.add('dragging');
-    } else if(Math.abs(dx) > Math.abs(dy) + 4){
-      // swipe orizzontale → annulla
-      touchDragSrcId = null; return;
-    } else { return; }
+  // Se l'utente si muove prima del long-press, cancella il timer (vuole scorrere)
+  if(touchDragLPTimer && (Math.abs(dy) > 6 || Math.abs(dx) > 6)){
+    clearTimeout(touchDragLPTimer); touchDragLPTimer = null;
+    touchDragSrcId = null; return;
   }
+  if(!touchDragActive) return;
   e.preventDefault(); // blocca scroll solo durante drag attivo
   const x = e.touches[0].clientX;
   const y = e.touches[0].clientY;
-  // Nascondi temporaneamente la riga src per leggere l'elemento sotto
   const srcRow = document.getElementById('row-'+touchDragSrcId);
   if(srcRow) srcRow.style.pointerEvents = 'none';
   const elUnder = document.elementFromPoint(x, y);
@@ -4322,7 +4330,8 @@ function _touchDragMove(e){
   }
 }
 
-function touchDragEnd(e){
+function touchItemEnd(e){
+  if(touchDragLPTimer){ clearTimeout(touchDragLPTimer); touchDragLPTimer = null; }
   if(!touchDragSrcId){ return; }
   if(touchDragActive){
     const tgtRow = document.querySelector('.drop-target-above,.drop-target-below');
@@ -4341,7 +4350,6 @@ function touchDragEnd(e){
           if(!before) ins++;
           p.items.splice(ins, 0, srcItem);
           saveState();
-          // cleanup happens inside renderBuilder
           touchDragSrcId = null; touchDragActive = false;
           renderBuilder();
           return;
@@ -4357,7 +4365,7 @@ function touchDragEnd(e){
   touchDragActive = false;
 }
 
-// Registra touchmove con {passive:false} per poter chiamare preventDefault
+// touchmove con {passive:false} per poter bloccare lo scroll durante il drag
 document.addEventListener('touchmove', _touchDragMove, {passive: false});
 
 function dragStart(e, id){
