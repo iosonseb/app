@@ -1870,7 +1870,7 @@ input,select,textarea{font-family:inherit}
   .items-table thead{display:none}
   .items-table tbody tr{
     display:grid;
-    grid-template-columns:auto auto auto 16px 1fr auto;
+    grid-template-columns:auto auto 16px auto 16px 1fr auto;
     grid-template-rows:auto auto auto;
     position:relative;
     border:1.5px solid var(--border-soft);
@@ -1886,7 +1886,8 @@ input,select,textarea{font-family:inherit}
 
   .drag-handle-cell{display:none !important}
 
-  /* Riga 1: numero · quadratino eseguito · descrizione */
+  /* Riga 1: [N.] [descrizione...] */
+  /* col1=auto(idx/del/eseguito) col2=auto(unit) col3=16px(×) col4=auto(qty) col5=16px(=) col6=1fr(price) col7=auto */
   .idx-cell{
     display:flex !important;
     grid-column:1;grid-row:1;
@@ -1897,35 +1898,32 @@ input,select,textarea{font-family:inherit}
     font-size:11px;font-weight:700;color:var(--accent);
     white-space:nowrap;
   }
-  /* Eseguito tra numero e testo */
-  .cell-eseguito{
-    grid-column:2;grid-row:1;
-    display:flex !important;
-    align-items:flex-start;
-    justify-content:center;
-    padding-top:2px;
-    padding-bottom:8px;
-    border-bottom:1px solid var(--border-soft);
-  }
   .cell-desc{
-    grid-column:3/-1;grid-row:1;
+    grid-column:2/-1;grid-row:1;
     font-size:13.5px;line-height:1.5;
     padding-bottom:8px;
     border-bottom:1px solid var(--border-soft);
     align-items:flex-start;
   }
 
-  /* Riga 2: unità × qtà × €/unità */
-  .cell-unit   {grid-column:1;grid-row:2;align-items:center}
-  .op-sep-mul  {grid-column:2;grid-row:2;display:flex !important;align-items:center;justify-content:center}
-  .cell-qty    {grid-column:3;grid-row:2;align-items:center}
-  .op-sep-eq   {grid-column:4;grid-row:2;display:flex !important;align-items:center;justify-content:center}
-  .cell-price  {grid-column:5/7;grid-row:2;align-items:center}
+  /* Riga 2: [vuoto] [unità] [×] [qtà] [=] [€/unità] */
+  .cell-unit   {grid-column:2;grid-row:2;align-items:center}
+  .op-sep-mul  {grid-column:3;grid-row:2;display:flex !important;align-items:center;justify-content:center}
+  .cell-qty    {grid-column:4;grid-row:2;align-items:center}
+  .op-sep-eq   {grid-column:5;grid-row:2;display:flex !important;align-items:center;justify-content:center}
+  .cell-price  {grid-column:6/-1;grid-row:2;align-items:center}
   .cell-price .euro-wrap{width:100%}
   .cell-price .euro-wrap .price-input{width:100%}
 
-  /* Riga 3: cestino a sx · "Totale €xxx" + checkbox a dx */
-  .cell-del  {grid-column:1;grid-row:3;align-items:center}
+  /* Riga 3: cestino/eseguito a sx · "Totale €xxx" + occhio a dx */
+  .cell-del     {grid-column:1;grid-row:3;align-items:center}
+  /* Nei consuntivi il toggle eseguito prende il posto del cestino */
+  .cell-eseguito{
+    grid-column:1;grid-row:3;
+    display:flex !important;
+    align-items:center;
+    justify-content:flex-start;
+  }
   .cell-total{
     grid-column:2/-1;grid-row:3;
     justify-content:flex-end;align-items:center;gap:6px;
@@ -3900,6 +3898,7 @@ function renderItemsTable(items, onlyOrigin){
   const allShowTotal = items.length>0 && items.every(i=>i.showTotal);
   // mostra eseguito toggle solo per items origin='preventivo' nei consuntivi
   const showEseguitoCol = isCons && (onlyOrigin==null || onlyOrigin==='preventivo');
+  const canDelete = !showEseguitoCol;
   const catId = items[0]?.cat;
   return `
     <div class="items-table-wrapper">
@@ -3940,14 +3939,14 @@ function renderItemsTable(items, onlyOrigin){
           </tr>
         </thead>
         <tbody>
-          ${items.map((item,idx)=>renderItemRow(item, idx, showEseguitoCol)).join('')}
+          ${items.map((item,idx)=>renderItemRow(item, idx, showEseguitoCol, canDelete)).join('')}
         </tbody>
       </table>
     </div>
   `;
 }
 
-function renderItemRow(item, idx, isCons){
+function renderItemRow(item, idx, isCons, canDelete=true){
   const total = calcItem(item);
   const notExec = isCons && item.eseguito===false;
   return `
@@ -4008,11 +4007,11 @@ function renderItemRow(item, idx, isCons){
           </button>
         </div>
       </td>
-      <td class="cell-del">
+      ${canDelete ? `<td class="cell-del">
         <button class="btn-icon danger" onclick="removeItem('${item.id}')" title="Rimuovi voce">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
-      </td>
+      </td>` : ''}
     </tr>
   `;
 }
