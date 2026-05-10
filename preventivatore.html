@@ -414,7 +414,6 @@ input,select,textarea{font-family:inherit}
 }
 .tab-btn.active .tab-num{background:rgba(255,255,255,.25);color:white}
 .btn-resume{
-  margin-left:auto;
   background:var(--accent);
   color:white;border:none;
   padding:8px 18px;border-radius:8px;
@@ -1886,6 +1885,8 @@ input,select,textarea{font-family:inherit}
   .list-header h2{font-size:20px}
   .preventivi-grid{grid-template-columns:1fr}
   .prev-card{padding:16px}
+  /* Dropdown impostazioni: apri verso destra su mobile */
+  .settings-dropdown{right:auto;left:0}
 
   /* ── Builder topbar ── */
   .builder-topbar{position:static;flex-direction:column;align-items:stretch;padding:12px 14px;gap:10px}
@@ -2102,7 +2103,7 @@ input,select,textarea{font-family:inherit}
       <button class="tab-btn active" data-view="list" onclick="switchView('list')">
         📋 Preventivi
       </button>
-      <button class="tab-btn" data-view="libreria" onclick="switchView('libreria')">
+      <button class="tab-btn" id="tab-libreria" data-view="libreria" onclick="switchView('libreria')">
         📚 Libreria
       </button>
     </div>
@@ -2118,13 +2119,6 @@ input,select,textarea{font-family:inherit}
         <span class="tab-num">3</span>PDF
       </button>
     </div>
-    <button class="btn-resume" id="btn-resume" onclick="resumeLastOpened()" style="display:none">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      <span>
-        <div id="btn-resume-label">Riprendi ultimo</div>
-        <div class="btn-resume-meta" id="btn-resume-meta"></div>
-      </span>
-    </button>
   </nav>
   <div style="display:flex;align-items:center;gap:10px">
     <span id="sync-status" class="sync-badge offline" title="Offline (localStorage)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
@@ -2184,6 +2178,13 @@ service cloud.firestore {
             </button>
           </div>
         </div>
+        <button class="btn-resume" id="btn-resume" onclick="resumeLastOpened()" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>
+            <div id="btn-resume-label">Riprendi ultimo</div>
+            <div class="btn-resume-meta" id="btn-resume-meta"></div>
+          </span>
+        </button>
         <button class="btn btn-primary" onclick="newPreventivo('preventivo')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nuovo Preventivo
@@ -3631,33 +3632,18 @@ function switchView(v){
   document.getElementById('view-'+v).classList.add('active');
   const tab = document.querySelector(`.tab-btn[data-view="${v}"]`);
   if(tab) tab.classList.add('active');
-  // Header: nascondi Dati/Voci/PDF nelle viste senza documento
+  // Header: mostra/nascondi Dati/Voci/PDF e tab Libreria
   const docGroup = document.getElementById('doc-tabs-group');
   const sep = document.getElementById('header-sep');
-  const resumeBtn = document.getElementById('btn-resume');
+  const tabLib = document.getElementById('tab-libreria');
   if(noDocViews.includes(v)){
     docGroup.style.display = 'none';
     sep.style.display = 'none';
-    if(v==='list'){
-      const lastDoc = state.lastOpenedId
-        ? state.preventivi.find(x=>x.id===state.lastOpenedId)
-        : state.preventivi[0];
-      if(lastDoc){
-        resumeBtn.style.display = '';
-        document.getElementById('btn-resume-label').textContent =
-          'Riprendi ultimo ' + (lastDoc.tipo==='consuntivo'?'consuntivo':'preventivo');
-        document.getElementById('btn-resume-meta').textContent =
-          'N. ' + formatDocNumber(lastDoc) + (lastDoc.client?.nome ? ' · '+lastDoc.client.nome : '');
-      } else {
-        resumeBtn.style.display = 'none';
-      }
-    } else {
-      resumeBtn.style.display = 'none';
-    }
+    if(tabLib) tabLib.style.display = '';
   } else {
     docGroup.style.display = '';
     sep.style.display = '';
-    resumeBtn.style.display = 'none';
+    if(tabLib) tabLib.style.display = 'none';
   }
   if(v==='list') renderListView();
   if(v==='libreria') renderLibraryView();
@@ -3678,6 +3664,22 @@ function filterList(f, btn){
 
 function renderListView(){
   const grid = document.getElementById('preventivi-grid');
+  // Aggiorna btn-resume
+  const resumeBtn = document.getElementById('btn-resume');
+  if(resumeBtn){
+    const lastDoc = state.lastOpenedId
+      ? state.preventivi.find(x=>x.id===state.lastOpenedId)
+      : state.preventivi[0];
+    if(lastDoc){
+      resumeBtn.style.display = '';
+      document.getElementById('btn-resume-label').textContent =
+        'Riprendi ' + (lastDoc.tipo==='consuntivo'?'consuntivo':'preventivo');
+      document.getElementById('btn-resume-meta').textContent =
+        'N. ' + formatDocNumber(lastDoc) + (lastDoc.client?.nome ? ' · '+lastDoc.client.nome : '');
+    } else {
+      resumeBtn.style.display = 'none';
+    }
+  }
   // Aggiorna badge cestino
   const cestinoCount = (state.cestino||[]).length;
   const chipCestino = document.getElementById('chip-cestino');
