@@ -583,6 +583,11 @@ input,select,textarea{font-family:inherit}
 }
 .filter-chip.active{background:var(--ink);color:white;border-color:var(--ink)}
 .filter-chip:hover:not(.active){border-color:var(--accent);color:var(--accent)}
+.filter-chip-cestino{color:var(--danger);border-color:rgba(220,53,69,.3)}
+.filter-chip-cestino.active{background:var(--danger);border-color:var(--danger);color:white}
+.filter-chip-cestino:hover:not(.active){border-color:var(--danger);color:var(--danger)}
+.cestino-card{opacity:.82;border-style:dashed !important}
+.cestino-card:hover{opacity:1}
 
 .preventivi-grid{
   display:grid;
@@ -851,6 +856,16 @@ input,select,textarea{font-family:inherit}
   pointer-events:none;z-index:1;
 }
 .euro-wrap input{padding-left:22px}
+/* prefisso unità nel campo quantità */
+.unit-wrap{position:relative;display:inline-flex;align-items:center}
+.unit-wrap::before{
+  content:attr(data-unit);
+  position:absolute;left:6px;
+  font-size:10px;color:var(--muted-soft);font-weight:700;
+  pointer-events:none;z-index:1;letter-spacing:.02em;
+  text-transform:lowercase;
+}
+.unit-wrap input{padding-left:28px}
 .cell-with-toggle .item-total{text-align:center;min-width:80px;display:inline-block}
 .qty-input{text-align:center;margin:0 auto;display:block}
 
@@ -1351,6 +1366,7 @@ input,select,textarea{font-family:inherit}
   cursor:pointer;
 }
 .picker-item:hover{background:var(--accent-light);border-color:var(--accent-soft)}
+.picker-item.picker-item-added{background:var(--success-light);border-color:var(--success);}
 .picker-item-text{flex:1;min-width:0}
 .picker-item-cat{
   font-size:9.5px;font-weight:700;
@@ -2042,6 +2058,7 @@ service cloud.firestore {
       <button class="filter-chip active" data-filter="all" onclick="filterList('all',this)">Tutti</button>
       <button class="filter-chip" data-filter="preventivo" onclick="filterList('preventivo',this)">Preventivi</button>
       <button class="filter-chip" data-filter="consuntivo" onclick="filterList('consuntivo',this)">Consuntivi</button>
+      <button class="filter-chip filter-chip-cestino" data-filter="cestino" onclick="filterList('cestino',this)" id="chip-cestino">🗑 Cestino</button>
     </div>
     <div id="preventivi-grid"></div>
   </div>
@@ -2509,7 +2526,8 @@ let state = {
   pickerAddingExtras: false, // quando true, le voci aggiunte vanno marcate origin='extra'
   priceMemory: {}, // libIdOrDescKey -> {price, unit}
   usageCount: {},  // libIdOrDescKey -> count
-  companyLogo: null // base64 string
+  companyLogo: null, // base64 string
+  cestino: [] // preventivi eliminati (soft delete)
 };
 
 // ═══════════════════════════════════════════════
@@ -2558,7 +2576,8 @@ function saveState(){
     companyDefaults: state.companyDefaults,
     priceMemory: state.priceMemory,
     usageCount: state.usageCount,
-    companyLogo: state.companyLogo || null
+    companyLogo: state.companyLogo || null,
+    cestino: state.cestino || []
   };
   // Salva sempre in localStorage come backup offline
   try{
@@ -2607,6 +2626,7 @@ async function loadState(){
     if(data.companyDefaults) state.companyDefaults = {...data.companyDefaults};
     if(data.priceMemory) state.priceMemory = data.priceMemory;
     if(data.usageCount) state.usageCount = data.usageCount;
+    if(data.cestino) state.cestino = data.cestino;
     // Migrazione: ogni preventivo deve avere catSubtotal + pdf flags
     state.preventivi.forEach(p=>{
       if(!p.catSubtotal) p.catSubtotal = {};
@@ -2935,10 +2955,10 @@ function deletePreventivo(id){
   const p = state.preventivi.find(x=>x.id===id);
   if(!p) return;
   confirmDialog(
-    `Eliminare il documento N. ${formatDocNumber(p)}?`,
-    'Questa azione non può essere annullata.',
+    `Spostare nel cestino il documento N. ${formatDocNumber(p)}?`,
+    'Potrai ripristinarlo dalla sezione Cestino.',
     () => {
-      // Rimuovi link nei collegati
+      // Rimuovi link nei collegati (ma mantieni i riferimenti nel doc eliminato per eventuale ripristino)
       if(p.tipo==='preventivo' && p.linkedConsuntivoId){
         const c = state.preventivi.find(x=>x.id===p.linkedConsuntivoId);
         if(c){ c.sourceId = null; }
@@ -2947,6 +2967,15 @@ function deletePreventivo(id){
         const src = state.preventivi.find(x=>x.id===p.sourceId);
         if(src){ src.linkedConsuntivoId = null; }
       }
+      // Soft delete: sposta nel cestino
+      const copy = JSON.parse(JSON.stringify(p));
+      copy._deletedAt = new Date().toISOString();
+      copy._linkedConsuntivoId_bak = p.linkedConsuntivoId || null;
+      copy._sourceId_bak = p.sourceId || null;
+      copy.linkedConsuntivoId = null;
+      copy.sourceId = null;
+      if(!state.cestino) state.cestino = [];
+      state.cestino.push(copy);
       state.preventivi = state.preventivi.filter(x=>x.id!==id);
       if(state.currentId===id){
         state.currentId = null;
@@ -2955,7 +2984,70 @@ function deletePreventivo(id){
       if(state.lastOpenedId===id) state.lastOpenedId = null;
       saveState();
       renderListView();
-      showToast('Documento eliminato');
+      showToast('Documento spostato nel cestino','info');
+    }
+  );
+}
+
+function restoreFromCestino(id){
+  if(!state.cestino) return;
+  const idx = state.cestino.findIndex(x=>x.id===id);
+  if(idx===-1) return;
+  const p = JSON.parse(JSON.stringify(state.cestino[idx]));
+  // Controlla duplicato numero tra preventivi attivi
+  const yr = getYearFromDate(p.data);
+  const dup = state.preventivi.find(x=>x.id!==p.id && x.numero===p.numero && getYearFromDate(x.data)===yr && x.tipo===p.tipo);
+  if(dup){
+    showToast(`Esiste già un ${p.tipo} con numero ${formatDocNumber(p)} (${yr}). Rinomina prima quello esistente.`,'error');
+    return;
+  }
+  // Ripristina link se possibili
+  delete p._deletedAt;
+  const linkedConsId = p._linkedConsuntivoId_bak;
+  const sourceId = p._sourceId_bak;
+  delete p._linkedConsuntivoId_bak;
+  delete p._sourceId_bak;
+  if(linkedConsId && state.preventivi.find(x=>x.id===linkedConsId)){
+    p.linkedConsuntivoId = linkedConsId;
+    state.preventivi.find(x=>x.id===linkedConsId).sourceId = p.id;
+  }
+  if(sourceId && state.preventivi.find(x=>x.id===sourceId)){
+    p.sourceId = sourceId;
+    state.preventivi.find(x=>x.id===sourceId).linkedConsuntivoId = p.id;
+  }
+  state.cestino.splice(idx, 1);
+  state.preventivi.push(p);
+  saveState();
+  renderListView();
+  showToast('Documento ripristinato');
+}
+
+function permanentlyDeleteFromCestino(id){
+  if(!state.cestino) return;
+  const p = state.cestino.find(x=>x.id===id);
+  if(!p) return;
+  confirmDialog(
+    `Eliminare definitivamente il documento N. ${formatDocNumber(p)}?`,
+    'Questa azione non può essere annullata.',
+    () => {
+      state.cestino = state.cestino.filter(x=>x.id!==id);
+      saveState();
+      renderListView();
+      showToast('Documento eliminato definitivamente');
+    }
+  );
+}
+
+function emptyTrash(){
+  if(!state.cestino || !state.cestino.length) return;
+  confirmDialog(
+    `Svuotare il cestino (${state.cestino.length} document${state.cestino.length===1?'o':'i'})?`,
+    'Questa azione non può essere annullata.',
+    () => {
+      state.cestino = [];
+      saveState();
+      renderListView();
+      showToast('Cestino svuotato');
     }
   );
 }
@@ -3103,7 +3195,8 @@ async function resetAllData(){
     companyDefaults: {...COMPANY_DEFAULTS_BUILTIN},
     priceMemory: {},
     usageCount: {},
-    companyLogo: null
+    companyLogo: null,
+    cestino: []
   };
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(emptyState)); }catch(e){}
   try{ localStorage.removeItem(LOGO_KEY); }catch(e){}
@@ -3176,6 +3269,21 @@ function setNumero(v){
   if(p.tipo==='consuntivo' && p.sourceId) return; // locked
   // Normalizza
   v = String(v||'').trim().padStart(3,'0').slice(0,5);
+  // Controlla duplicati tra preventivi attivi (stesso tipo + anno)
+  const yr = getYearFromDate(p.data);
+  const dupActive = state.preventivi.find(x=>x.id!==p.id && x.numero===v && getYearFromDate(x.data)===yr && x.tipo===p.tipo);
+  if(dupActive){
+    showToast(`Esiste già un ${p.tipo} con numero ${v}-${yr}. Scegli un numero diverso.`,'error');
+    fillSetupForm();
+    return;
+  }
+  // Controlla duplicati nel cestino
+  const dupCestino = (state.cestino||[]).find(x=>x.id!==p.id && x.numero===v && getYearFromDate(x.data)===yr && x.tipo===p.tipo);
+  if(dupCestino){
+    showToast(`Nel cestino è presente un ${p.tipo} con numero ${v}-${yr}. Eliminalo dal cestino prima di usare questo numero.`,'warning');
+    fillSetupForm();
+    return;
+  }
   p.numero = v;
   // Aggiorna consuntivo collegato se preventivo
   if(p.tipo==='preventivo' && p.linkedConsuntivoId){
@@ -3261,6 +3369,71 @@ function filterList(f, btn){
 
 function renderListView(){
   const grid = document.getElementById('preventivi-grid');
+  // Aggiorna badge cestino
+  const cestinoCount = (state.cestino||[]).length;
+  const chipCestino = document.getElementById('chip-cestino');
+  if(chipCestino) chipCestino.textContent = cestinoCount > 0 ? `🗑 Cestino (${cestinoCount})` : '🗑 Cestino';
+
+  // ── VISTA CESTINO ──
+  if(state.listFilter === 'cestino'){
+    const cestitems = state.cestino || [];
+    document.getElementById('prev-count').textContent = cestitems.length ? `(${cestitems.length})` : '';
+    if(!cestitems.length){
+      grid.className = '';
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🗑</div>
+          <h3>Cestino vuoto</h3>
+          <p>I documenti eliminati appariranno qui.</p>
+        </div>`;
+      return;
+    }
+    // Header azioni cestino
+    const sorted = [...cestitems].sort((a,b) => new Date(b._deletedAt||0) - new Date(a._deletedAt||0));
+    grid.className = '';
+    grid.innerHTML = `
+      <div class="year-group">
+        <div class="year-header">
+          <h3>Cestino</h3>
+          <span class="year-meta">
+            ${cestitems.length} ${cestitems.length===1?'documento':'documenti'}
+            &nbsp;·&nbsp;
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger);font-size:12px;padding:3px 8px" onclick="emptyTrash()">Svuota cestino</button>
+          </span>
+        </div>
+        <div class="preventivi-grid">
+          ${sorted.map(p => {
+            const deletedDate = p._deletedAt ? fmtDateShort(p._deletedAt.split('T')[0]) : '—';
+            return `
+            <div class="prev-card cestino-card" data-tipo="${p.tipo}">
+              <div class="prev-card-header">
+                <span class="prev-num">N. ${escHtml(formatDocNumber(p))}</span>
+                <span class="prev-tipo ${p.tipo}">${p.tipo}</span>
+              </div>
+              <div class="prev-card-cliente">${escHtml(p.client?.nome) || '<span style="color:var(--muted-soft)">Senza cliente</span>'}</div>
+              <div class="prev-card-sito" style="color:var(--muted);font-size:11px">Eliminato il ${deletedDate}</div>
+              <div class="prev-card-meta">
+                <span>${fmtDateShort(p.data)}</span>
+                <span class="prev-card-total" style="color:var(--muted)">${fmtCur(calcImponibileFor(p))}</span>
+              </div>
+              <div class="prev-card-actions" onclick="event.stopPropagation()">
+                <button class="btn-icon" onclick="restoreFromCestino('${p.id}')" title="Ripristina" style="color:var(--success)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.67"/></svg>
+                  Ripristina
+                </button>
+                <button class="btn-icon danger" onclick="permanentlyDeleteFromCestino('${p.id}')" title="Elimina definitivamente">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  Elimina
+                </button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    return;
+  }
+
+  // ── VISTA NORMALE ──
   const items = state.preventivi.filter(p => state.listFilter==='all' || p.tipo===state.listFilter);
   document.getElementById('prev-count').textContent = items.length ? `(${items.length})` : '';
 
@@ -3343,7 +3516,7 @@ function renderListView(){
                 <button class="btn-icon" onclick="duplicatePreventivo('${p.id}')" title="Duplica">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
-                <button class="btn-icon danger" onclick="deletePreventivo('${p.id}')" title="Elimina">
+                <button class="btn-icon danger" onclick="deletePreventivo('${p.id}')" title="Sposta nel cestino">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </div>
@@ -3563,8 +3736,8 @@ function renderItemRow(item, idx, isCons){
         <span class="edit-pencil">✎</span>
       </td>
       <td class="center cell-qty">
-        <input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
-          placeholder="0" onchange="updateItem('${item.id}','qty',this.value)">
+        <div class="unit-wrap" data-unit="${item.unit||''}"><input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
+          placeholder="0" onchange="updateItem('${item.id}','qty',this.value)"></div>
       </td>
       <td class="center cell-unit">
         <select class="unit-select" onchange="updateItem('${item.id}','unit',this.value)">
@@ -3825,7 +3998,7 @@ function drop(e, tgtId){
 // ═══════════════════════════════════════════════
 function openPicker(targetCatId, asExtra=false){
   state.pickerTargetCatId = targetCatId;
-  state.pickerCatFilter = 'all';
+  state.pickerCatFilter = targetCatId || 'all'; // preimposta il filtro sulla categoria corrente
   state.pickerAddingExtras = !!asExtra;
   document.getElementById('picker-search').value = '';
   document.getElementById('picker-custom-desc').value = '';
@@ -4054,7 +4227,13 @@ function addItemFromPicker(libId){
   refreshCategorySection(state.pickerTargetCatId);
   recalcAll();
   renderPickerSidebar();
-  renderPickerItems(); // aggiorna usage badge
+  // Evidenzia in verde la voce aggiunta senza re-render completo
+  const el = document.getElementById('pi-'+libId);
+  if(el){
+    el.classList.add('picker-item-added');
+  } else {
+    renderPickerItems();
+  }
   showToast('Voce aggiunta');
 }
 
@@ -4831,7 +5010,7 @@ function buildPdfHtml(){
         <div class="pdf-footer-note">
           <strong>${escHtml(p.company.nome||'')}</strong>
           ${p.company.piva?`<em>P.IVA ${escHtml(p.company.piva)}</em>`:''}
-          ${p.company.phone?`<em>${escHtml(p.company.phone)}</em>`:''}
+          ${p.company.phone?`<em><strong>Cell.</strong> ${escHtml(p.company.phone)}</em>`:''}
           ${p.company.email?`<em>${escHtml(p.company.email)}</em>`:''}
           ${p.company.addr?`<em>${escHtml(p.company.addr)}</em>`:''}
         </div>
