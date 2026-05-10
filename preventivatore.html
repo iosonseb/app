@@ -3811,11 +3811,10 @@ function renderCategorySection(cat, opts={}){
           <span class="cat-total" id="cat-total-${catId}${sectionIdSuffix}"></span>
         </div>
         <div class="cat-controls" onclick="event.stopPropagation()">
-          ${!isExtraSection ? `<button class="col-eye-btn${showSubtotal?' eye-open':' eye-closed'}"
+          ${!isExtraSection ? `<button class="eye-btn${showSubtotal?' eye-open':' eye-closed'}"
             onclick="event.stopPropagation();toggleCatSubtotal('${catId}',${!showSubtotal})"
             title="${showSubtotal?'Nascondi subtotale dal PDF':'Mostra subtotale nel PDF'}">
             ${showSubtotal ? EYE_OPEN_SVG : EYE_CLOSED_SVG}
-            <span>Subtot. PDF</span>
           </button>` : ''}
           <span class="cat-toggle-arrow open" id="cat-toggle-${catId}${sectionIdSuffix}" onclick="toggleCat('${catId}${sectionIdSuffix}')">▾</span>
         </div>
