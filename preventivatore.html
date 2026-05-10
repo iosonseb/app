@@ -2311,9 +2311,7 @@ service cloud.firestore {
           <div class="picker-custom-form">
             <input type="text" id="picker-custom-desc" placeholder="Descrizione della nuova voce..." onkeydown="if(event.key==='Enter')addCustomFromPicker()">
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <select id="picker-custom-cat" style="flex:1;min-width:150px;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;background:white;outline:none;font-family:inherit"></select>
               <select id="picker-custom-unit" style="width:90px;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:13px;background:white;outline:none;font-family:inherit"></select>
-              <button class="btn btn-ghost btn-sm" onclick="quickNewCategory()" title="Nuova categoria">+ Cat.</button>
             </div>
             <div class="picker-custom-actions">
               <label class="picker-save-toggle">
@@ -3020,6 +3018,14 @@ function deletePreventivo(id){
       if(!state.cestino) state.cestino = [];
       state.cestino.push(copy);
       state.preventivi = state.preventivi.filter(x=>x.id!==id);
+      // Se esistono copie dello stesso numero+anno+tipo e ora sono le uniche, rimuovi il badge "Copia"
+      const delYear = getYearFromDate(p.data);
+      state.preventivi.forEach(x=>{
+        if(x.isCopia && x.numero===p.numero && x.tipo===p.tipo && getYearFromDate(x.data)===delYear){
+          const conflicts = state.preventivi.filter(o=>o.id!==x.id && o.numero===x.numero && o.tipo===x.tipo && getYearFromDate(o.data)===delYear);
+          if(!conflicts.length) x.isCopia = false;
+        }
+      });
       if(state.currentId===id){
         state.currentId = null;
         switchView('list');
@@ -4177,8 +4183,6 @@ function openPicker(targetCatId, asExtra=false){
   document.getElementById('picker-custom-desc').value = '';
   document.getElementById('picker-custom-save').checked = false;
   const cat = getCategoryById(targetCatId);
-  // Set custom-cat default
-  populatePickerCustomCat(targetCatId);
   populatePickerCustomUnit('corpo');
   const extraSuffix = asExtra ? ' come <strong>opera extra</strong>' : '';
   document.getElementById('picker-target-banner').innerHTML =
@@ -4427,7 +4431,7 @@ function addCustomFromPicker(){
   if(!desc){ showToast('Inserisci una descrizione','warning'); return; }
   if(!state.pickerTargetCatId) return;
   const save = document.getElementById('picker-custom-save').checked;
-  const targetCatId = document.getElementById('picker-custom-cat').value || state.pickerTargetCatId;
+  const targetCatId = state.pickerTargetCatId;
   const unit = document.getElementById('picker-custom-unit').value || 'corpo';
   const obj = { id: genId('custom'), cat: targetCatId, desc: desc, unit: unit };
   if(save){
