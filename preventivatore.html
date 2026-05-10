@@ -1885,20 +1885,33 @@ input,select,textarea{font-family:inherit}
   .items-table td{padding:0;border:none;font-size:13px;display:flex;align-items:center}
 
   .drag-handle-cell{display:none !important}
-  .idx-cell{display:none !important}
 
-  /* Riga 1: descrizione (intera larghezza) */
+  /* Riga 1: numero voce a sx + descrizione + eseguito a dx */
+  .idx-cell{
+    display:flex !important;
+    grid-column:1;grid-row:1;
+    align-items:flex-start;
+    padding-top:2px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--border-soft);
+    font-size:11px;font-weight:700;color:var(--accent);
+    white-space:nowrap;
+  }
   .cell-desc{
-    grid-column:1/-1;grid-row:1;
+    grid-column:2/6;grid-row:1;
     font-size:13.5px;line-height:1.5;
-    padding-bottom:8px;padding-right:44px;
+    padding-bottom:8px;
     border-bottom:1px solid var(--border-soft);
     align-items:flex-start;
   }
-  /* Eseguito flottante in alto a destra (consuntivo) */
+  /* Eseguito in griglia in alto a destra (consuntivo) */
   .cell-eseguito{
-    position:absolute;top:10px;right:12px;
-    display:flex !important;align-items:center;
+    grid-column:6;grid-row:1;
+    display:flex !important;
+    align-items:flex-start;
+    justify-content:flex-end;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--border-soft);
   }
 
   /* Riga 2: unità × qtà × €/unità */
