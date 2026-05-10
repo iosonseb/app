@@ -1886,7 +1886,7 @@ input,select,textarea{font-family:inherit}
 
   .drag-handle-cell{display:none !important}
 
-  /* Riga 1: numero voce a sx + descrizione + eseguito a dx */
+  /* Riga 1: numero · quadratino eseguito · descrizione */
   .idx-cell{
     display:flex !important;
     grid-column:1;grid-row:1;
@@ -1897,21 +1897,22 @@ input,select,textarea{font-family:inherit}
     font-size:11px;font-weight:700;color:var(--accent);
     white-space:nowrap;
   }
+  /* Eseguito tra numero e testo */
+  .cell-eseguito{
+    grid-column:2;grid-row:1;
+    display:flex !important;
+    align-items:flex-start;
+    justify-content:center;
+    padding-top:2px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--border-soft);
+  }
   .cell-desc{
-    grid-column:2/6;grid-row:1;
+    grid-column:3/-1;grid-row:1;
     font-size:13.5px;line-height:1.5;
     padding-bottom:8px;
     border-bottom:1px solid var(--border-soft);
     align-items:flex-start;
-  }
-  /* Eseguito in griglia in alto a destra (consuntivo) */
-  .cell-eseguito{
-    grid-column:6;grid-row:1;
-    display:flex !important;
-    align-items:flex-start;
-    justify-content:flex-end;
-    padding-bottom:8px;
-    border-bottom:1px solid var(--border-soft);
   }
 
   /* Riga 2: unità × qtà × €/unità */
