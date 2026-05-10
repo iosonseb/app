@@ -1441,6 +1441,36 @@ input,select,textarea{font-family:inherit}
 .picker-item:hover .picker-item-del{opacity:1}
 .picker-item-del:hover{background:var(--danger-light);color:var(--danger)}
 
+/* ── Libreria view ── */
+.lib-filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.lib-filter-btn{
+  padding:5px 12px;border-radius:20px;border:1.5px solid var(--border-soft);
+  background:white;color:var(--ink-soft);font-size:12px;font-weight:500;
+  cursor:pointer;transition:var(--transition);display:flex;align-items:center;gap:5px;
+}
+.lib-filter-btn:hover{border-color:var(--accent);color:var(--accent)}
+.lib-filter-btn.active{background:var(--accent);border-color:var(--accent);color:white}
+.lib-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 0;
+  border-bottom:1px solid var(--border-soft);
+}
+.lib-item:last-child{border-bottom:none}
+.lib-item-content{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lib-item-desc{font-size:13.5px;color:var(--ink);flex:1;min-width:0}
+.lib-item-unit{
+  font-size:11px;font-weight:600;color:var(--muted);
+  background:var(--cream);border:1px solid var(--border-soft);
+  border-radius:5px;padding:2px 7px;white-space:nowrap;flex-shrink:0;
+}
+.lib-item-actions{display:flex;gap:4px;flex-shrink:0}
+.lib-item-actions .picker-item-edit,
+.lib-item-actions .picker-item-del{opacity:1}
+.lib-cat-block{background:white;border-radius:12px;border:1.5px solid var(--border-soft);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow-sm)}
+.lib-cat-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border-soft)}
+.lib-cat-name{margin:0;font-size:14px;font-weight:600;color:var(--ink)}
+.lib-cat-count{margin-left:auto;font-size:11px;color:var(--muted)}
+
 .picker-custom-toggle-row{
   padding:10px 22px;border-top:1.5px solid var(--border-soft);
   background:var(--paper);
@@ -2060,6 +2090,9 @@ input,select,textarea{font-family:inherit}
       <button class="tab-btn active" data-view="list" onclick="switchView('list')">
         📋 Preventivi
       </button>
+      <button class="tab-btn" data-view="libreria" onclick="switchView('libreria')">
+        📚 Libreria
+      </button>
     </div>
     <div class="header-tabs-sep" id="header-sep" style="display:none"></div>
     <div class="header-tabs-group" id="doc-tabs-group">
@@ -2330,6 +2363,44 @@ service cloud.firestore {
       <div id="acconti-body"></div>
     </div>
 
+  </div>
+</div>
+
+<!-- ═══════════ VIEW: LIBRERIA ═══════════ -->
+<div id="view-libreria" class="view">
+  <div class="list-container">
+    <!-- Top bar -->
+    <div class="list-header" style="margin-bottom:16px">
+      <h2>📚 Libreria Voci</h2>
+      <button class="btn btn-primary" onclick="toggleLibAddPanel()">+ Nuova voce</button>
+    </div>
+
+    <!-- Form aggiungi voce -->
+    <div id="lib-add-panel" class="card" style="display:none;margin-bottom:16px;border:1.5px solid var(--accent)">
+      <h4 style="margin:0 0 14px">Nuova voce</h4>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input type="text" id="lib-add-desc" class="picker-item-edit-input" placeholder="Descrizione della voce..." style="font-size:14px;padding:10px 12px;width:100%;box-sizing:border-box" onkeydown="if(event.key==='Enter')saveLibNewItem()">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="lib-add-cat" class="unit-select" style="flex:1;min-width:140px"></select>
+          <select id="lib-add-unit" class="unit-select"></select>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-sm" onclick="toggleLibAddPanel()">Annulla</button>
+          <button class="btn btn-primary btn-sm" onclick="saveLibNewItem()">Salva voce</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ricerca -->
+    <div style="margin-bottom:14px">
+      <input type="text" id="lib-search" class="picker-search-input" placeholder="Cerca voce..." oninput="renderLibraryView()" style="width:100%;box-sizing:border-box">
+    </div>
+
+    <!-- Filtri categoria -->
+    <div id="lib-filter-bar" class="lib-filter-bar"></div>
+
+    <!-- Lista voci -->
+    <div id="lib-items-list"></div>
   </div>
 </div>
 
@@ -3538,7 +3609,8 @@ function enableTabs(){
 // VIEW SWITCHING
 // ═══════════════════════════════════════════════
 function switchView(v){
-  if(v!=='list' && !getCurrentPrev()){
+  const noDocViews = ['list','libreria'];
+  if(!noDocViews.includes(v) && !getCurrentPrev()){
     showToast('Seleziona prima un documento','warning');
     return;
   }
@@ -3547,23 +3619,26 @@ function switchView(v){
   document.getElementById('view-'+v).classList.add('active');
   const tab = document.querySelector(`.tab-btn[data-view="${v}"]`);
   if(tab) tab.classList.add('active');
-  // Header: in list view nascondi Dati/Voci/PDF, mostra "Riprendi ultimo"
+  // Header: nascondi Dati/Voci/PDF nelle viste senza documento
   const docGroup = document.getElementById('doc-tabs-group');
   const sep = document.getElementById('header-sep');
   const resumeBtn = document.getElementById('btn-resume');
-  if(v==='list'){
+  if(noDocViews.includes(v)){
     docGroup.style.display = 'none';
     sep.style.display = 'none';
-    // Mostra Riprendi se c'è almeno 1 documento
-    const lastDoc = state.lastOpenedId
-      ? state.preventivi.find(x=>x.id===state.lastOpenedId)
-      : state.preventivi[0];
-    if(lastDoc){
-      resumeBtn.style.display = '';
-      document.getElementById('btn-resume-label').textContent =
-        'Riprendi ultimo ' + (lastDoc.tipo==='consuntivo'?'consuntivo':'preventivo');
-      document.getElementById('btn-resume-meta').textContent =
-        'N. ' + formatDocNumber(lastDoc) + (lastDoc.client?.nome ? ' · '+lastDoc.client.nome : '');
+    if(v==='list'){
+      const lastDoc = state.lastOpenedId
+        ? state.preventivi.find(x=>x.id===state.lastOpenedId)
+        : state.preventivi[0];
+      if(lastDoc){
+        resumeBtn.style.display = '';
+        document.getElementById('btn-resume-label').textContent =
+          'Riprendi ultimo ' + (lastDoc.tipo==='consuntivo'?'consuntivo':'preventivo');
+        document.getElementById('btn-resume-meta').textContent =
+          'N. ' + formatDocNumber(lastDoc) + (lastDoc.client?.nome ? ' · '+lastDoc.client.nome : '');
+      } else {
+        resumeBtn.style.display = 'none';
+      }
     } else {
       resumeBtn.style.display = 'none';
     }
@@ -3573,6 +3648,7 @@ function switchView(v){
     resumeBtn.style.display = 'none';
   }
   if(v==='list') renderListView();
+  if(v==='libreria') renderLibraryView();
   if(v==='builder') renderBuilder();
   if(v==='setup') fillSetupForm();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -4383,13 +4459,7 @@ function renderPickerItems(){
           <div class="picker-item-desc" id="pi-desc-${it.id}">${escHtml(it.desc)}</div>
         </div>
         <div class="picker-item-actions" onclick="event.stopPropagation()">
-          <button class="picker-item-edit" onclick="editLibraryItem('${it.id}')" title="Modifica voce">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button class="picker-item-del" onclick="confirmDeleteLibraryItem('${it.id}')" title="${isCustom?'Elimina':'Nascondi'} dalla libreria">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
-          <button class="picker-item-add" onclick="addItemFromPicker('${it.id}')" title="Aggiungi">+</button>
+          <button class="picker-item-add" onclick="addItemFromPicker('${it.id}')" title="${isAdded?'Rimuovi':'Aggiungi'}">${isAdded?'−':'+'}</button>
         </div>
       </div>
     `;
@@ -4467,11 +4537,171 @@ function saveLibraryItemDesc(libId, value){
   saveLibraryItemEdit(libId);
 }
 
+// ═══════════════════════════════════════════════
+// LIBRERIA VIEW
+// ═══════════════════════════════════════════════
+let libCatFilter = 'all';
+
+function renderLibraryView(){
+  const lib = getLibrary();
+  const search = (document.getElementById('lib-search')?.value || '').toLowerCase();
+
+  // Filtri categoria
+  const filterBar = document.getElementById('lib-filter-bar');
+  if(filterBar){
+    const usedCats = state.categories.filter(c => lib.some(i=>i.cat===c.id));
+    filterBar.innerHTML = [
+      `<button class="lib-filter-btn${libCatFilter==='all'?' active':''}" onclick="setLibCatFilter('all')">Tutte</button>`,
+      ...usedCats.map(c=>`<button class="lib-filter-btn${libCatFilter===c.id?' active':''}" onclick="setLibCatFilter('${c.id}')">
+        <span style="width:8px;height:8px;border-radius:50%;background:${c.color};display:inline-block;flex-shrink:0"></span>
+        ${escHtml(c.name)}
+      </button>`)
+    ].join('');
+  }
+
+  // Filtra voci
+  let items = lib.filter(it => {
+    if(libCatFilter !== 'all' && it.cat !== libCatFilter) return false;
+    if(search && !it.desc.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  items.sort((a,b)=>a.desc.localeCompare(b.desc));
+
+  const cont = document.getElementById('lib-items-list');
+  if(!cont) return;
+  if(!items.length){
+    cont.innerHTML = `<div class="cat-empty-state">Nessuna voce trovata.</div>`;
+    return;
+  }
+
+  // Raggruppa per categoria
+  const byCat = {};
+  items.forEach(it => { (byCat[it.cat]||(byCat[it.cat]=[])).push(it); });
+
+  cont.innerHTML = Object.entries(byCat).map(([catId, catItems]) => {
+    const cat = getCategoryById(catId);
+    return `
+      <div class="lib-cat-block">
+        <div class="lib-cat-header">
+          <span style="width:12px;height:12px;border-radius:50%;background:${cat?.color||'#888'};display:inline-block;flex-shrink:0"></span>
+          <h3 class="lib-cat-name">${escHtml(cat?.name||catId)}</h3>
+          <span class="lib-cat-count">${catItems.length} ${catItems.length===1?'voce':'voci'}</span>
+        </div>
+        ${catItems.map(it => {
+          const isCustom = !!(state.customLibrary.find(x=>x.id===it.id && !x._hide && !x._override) || false) || it.id.startsWith('custom_');
+          return `
+            <div class="lib-item" id="librow-${it.id}">
+              <div class="lib-item-content">
+                <span class="lib-item-desc" id="libdesc-${it.id}">${escHtml(it.desc)}</span>
+                <span class="lib-item-unit">${it.unit||'corpo'}</span>
+              </div>
+              <div class="lib-item-actions">
+                <button class="picker-item-edit" onclick="libStartEdit('${it.id}')" title="Modifica">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="picker-item-del" style="opacity:1" onclick="confirmDeleteLibraryItem('${it.id}')" title="${isCustom?'Elimina':'Nascondi'} dalla libreria">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }).join('');
+}
+
+function setLibCatFilter(f){
+  libCatFilter = f;
+  renderLibraryView();
+}
+
+function toggleLibAddPanel(){
+  const panel = document.getElementById('lib-add-panel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : '';
+  if(!isOpen){
+    const catSel = document.getElementById('lib-add-cat');
+    catSel.innerHTML = state.categories.map(c=>
+      `<option value="${c.id}">${escHtml(c.name)}</option>`
+    ).join('');
+    const unitSel = document.getElementById('lib-add-unit');
+    unitSel.innerHTML = UNITS.map(u=>`<option value="${u}">${u}</option>`).join('');
+    setTimeout(()=>document.getElementById('lib-add-desc')?.focus(), 50);
+  }
+}
+
+function saveLibNewItem(){
+  const desc = (document.getElementById('lib-add-desc')?.value || '').trim();
+  if(!desc){ showToast('Inserisci una descrizione','warning'); return; }
+  const cat  = document.getElementById('lib-add-cat')?.value;
+  const unit = document.getElementById('lib-add-unit')?.value || 'corpo';
+  if(!cat){ showToast('Seleziona una categoria','warning'); return; }
+  const item = { id: genId('custom'), cat, desc, unit };
+  state.customLibrary.push(item);
+  saveState();
+  document.getElementById('lib-add-panel').style.display = 'none';
+  document.getElementById('lib-add-desc').value = '';
+  showToast('Voce aggiunta alla libreria');
+  renderLibraryView();
+}
+
+function libStartEdit(libId){
+  const lib = getLibrary();
+  const it = lib.find(x=>x.id===libId);
+  if(!it) return;
+  const descEl = document.getElementById('libdesc-'+libId);
+  const editBtn = document.querySelector(`#librow-${libId} .picker-item-edit`);
+  if(!descEl || descEl.querySelector('input')) return;
+  descEl.innerHTML = `<input class="picker-item-edit-input" type="text" id="libedit-${libId}"
+    value="${escHtml(it.desc)}" style="width:100%"
+    onclick="event.stopPropagation()"
+    onkeydown="if(event.key==='Enter'){event.preventDefault();libSaveEdit('${libId}');}if(event.key==='Escape')renderLibraryView();">`;
+  document.getElementById('libedit-'+libId)?.focus();
+  if(editBtn){
+    editBtn.title = 'Salva';
+    editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>`;
+    editBtn.onclick = function(e){ e.stopPropagation(); libSaveEdit(libId); };
+  }
+}
+
+function libSaveEdit(libId){
+  const inp = document.getElementById('libedit-'+libId);
+  const v = (inp?.value||'').trim();
+  if(!v){ renderLibraryView(); return; }
+  const custom = state.customLibrary.find(x=>x.id===libId && !x._hide && !x._override);
+  const def    = DEFAULT_LIBRARY.find(x=>x.id===libId);
+  if(custom){
+    custom.desc = v;
+  } else if(def){
+    if(def.desc !== v){
+      state.customLibrary.push({ id:libId, cat:def.cat, desc:v, unit:def.unit, _override:true });
+    }
+  }
+  saveState();
+  renderLibraryView();
+  showToast('Voce modificata');
+}
+
 function addItemFromPicker(libId){
   const lib = getLibrary();
   const libItem = lib.find(i=>i.id===libId);
   if(!libItem) return;
   if(!state.pickerTargetCatId) return;
+  const p = getCurrentPrev();
+  if(!p) return;
+  // Se già presente, rimuovi invece di aggiungere
+  const existing = p.items.find(i=>i.libId===libId);
+  if(existing){
+    p.items = p.items.filter(i=>i.id!==existing.id);
+    saveState();
+    refreshCategorySection(existing.cat);
+    recalcAll();
+    renderPickerSidebar();
+    renderPickerItems();
+    showToast('Voce rimossa');
+    return;
+  }
   addItem(state.pickerTargetCatId, libItem);
   refreshCategorySection(state.pickerTargetCatId);
   recalcAll();
@@ -4559,6 +4789,7 @@ function confirmDeleteLibraryItem(id){
     }
     saveState();
     renderPickerItems();
+    if(document.getElementById('view-libreria')?.classList.contains('active')) renderLibraryView();
     showToast(isCustom?'Voce eliminata':'Voce nascosta');
   }, {warn:true, okLabel: isCustom?'Elimina':'Nascondi'});
 }
