@@ -1444,6 +1444,7 @@ input,select,textarea{font-family:inherit}
 .picker-custom-toggle-row{
   padding:10px 22px;border-top:1.5px solid var(--border-soft);
   background:var(--paper);
+  display:flex;align-items:center;gap:8px;
 }
 .picker-custom-toggle-btn{
   display:inline-flex;align-items:center;gap:7px;
@@ -1985,6 +1986,9 @@ input,select,textarea{font-family:inherit}
   .picker-target-banner{padding:8px 12px}
   .picker-items{padding:6px 10px}
   .picker-custom{padding:12px}
+  #picker-fatto-header{display:none !important}
+  #picker-fatto-bottom{display:inline-flex !important}
+  .picker-custom-toggle-row{padding:8px 12px}
 
   /* ── Form ── */
   .form-grid,.form-grid.three{grid-template-columns:1fr}
@@ -2323,7 +2327,7 @@ service cloud.firestore {
     <div class="modal-header">
       <h2>Aggiungi Voce</h2>
       <div class="modal-header-actions">
-        <button class="btn btn-primary btn-sm" onclick="closePicker()" style="background:var(--accent);border-color:var(--accent);gap:6px">
+        <button id="picker-fatto-header" class="btn btn-primary btn-sm" onclick="closePicker()" style="background:var(--accent);border-color:var(--accent);gap:6px">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
           Fatto
         </button>
@@ -2341,6 +2345,10 @@ service cloud.firestore {
           <button class="picker-custom-toggle-btn" id="picker-custom-toggle-btn" onclick="togglePickerCustom()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Crea nuova voce
+          </button>
+          <button id="picker-fatto-bottom" class="btn btn-primary btn-sm" onclick="closePicker()" style="display:none;background:var(--accent);border-color:var(--accent);gap:6px;flex-shrink:0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+            Fatto
           </button>
         </div>
         <div class="picker-custom" id="picker-custom-panel" style="display:none">
