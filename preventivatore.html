@@ -3784,9 +3784,12 @@ function renderCategorySection(cat, opts={}){
           <span class="cat-total" id="cat-total-${catId}${sectionIdSuffix}"></span>
         </div>
         <div class="cat-controls" onclick="event.stopPropagation()">
-          ${!isExtraSection ? `<label class="show-toggle" style="font-size:10.5px;padding:4px 8px" title="Mostra subtotale categoria nel PDF">
-            <input type="checkbox" ${showSubtotal?'checked':''} onchange="toggleCatSubtotal('${catId}',this.checked)"> Subtot. PDF
-          </label>` : ''}
+          ${!isExtraSection ? `<button class="col-eye-btn${showSubtotal?' eye-open':' eye-closed'}"
+            onclick="event.stopPropagation();toggleCatSubtotal('${catId}',${!showSubtotal})"
+            title="${showSubtotal?'Nascondi subtotale dal PDF':'Mostra subtotale nel PDF'}">
+            ${showSubtotal ? EYE_OPEN_SVG : EYE_CLOSED_SVG}
+            <span>Subtot. PDF</span>
+          </button>` : ''}
           <span class="cat-toggle-arrow open" id="cat-toggle-${catId}${sectionIdSuffix}" onclick="toggleCat('${catId}${sectionIdSuffix}')">▾</span>
         </div>
       </div>
@@ -3839,6 +3842,7 @@ function toggleCatSubtotal(catId, val){
   if(!p.catSubtotal) p.catSubtotal = {};
   p.catSubtotal[catId] = !!val;
   saveState();
+  renderBuilder();
 }
 
 function renderItemsTable(items, onlyOrigin){
@@ -4202,7 +4206,6 @@ function openPicker(targetCatId, asExtra=false){
   document.getElementById('picker-custom-desc').value = '';
   resetSaveToLibrary();
   const cat = getCategoryById(targetCatId);
-  populatePickerCustomUnit('corpo');
   const extraSuffix = asExtra ? ' come <strong>opera extra</strong>' : '';
   document.getElementById('picker-target-banner').innerHTML =
     `Voci aggiunte alla categoria <strong>${escHtml(cat?cat.name:'?')}</strong>${extraSuffix}. Puoi scegliere da qualsiasi categoria.`;
