@@ -803,6 +803,7 @@ input,select,textarea{font-family:inherit}
   font-size:16px;font-weight:400;
 }
 .cat-total{
+  margin-left:auto;
   font-size:12.5px;color:var(--accent);font-weight:600;
   font-feature-settings:"tnum";
   background:var(--accent-light);
@@ -4541,7 +4542,10 @@ function renderPickerItems(){
     return;
   }
   const p = getCurrentPrev();
-  const addedLibIds = new Set((p?.items||[]).map(i=>i.libId).filter(Boolean));
+  // Per le opere extra non evidenziare le voci già presenti (si possono aggiungere più volte)
+  const addedLibIds = state.pickerAddingExtras
+    ? new Set()
+    : new Set((p?.items||[]).map(i=>i.libId).filter(Boolean));
   cont.innerHTML = items.map(it => {
     const cat = getCategoryById(it.cat);
     const catName = cat?cat.name:'?';
@@ -4786,17 +4790,19 @@ function addItemFromPicker(libId){
   if(!state.pickerTargetCatId) return;
   const p = getCurrentPrev();
   if(!p) return;
-  // Se già presente, rimuovi invece di aggiungere
-  const existing = p.items.find(i=>i.libId===libId);
-  if(existing){
-    p.items = p.items.filter(i=>i.id!==existing.id);
-    saveState();
-    refreshCategorySection(existing.cat);
-    recalcAll();
-    renderPickerSidebar();
-    renderPickerItems();
-    showToast('Voce rimossa');
-    return;
+  // Per le opere extra si può aggiungere la stessa voce più volte (no toggle)
+  if(!state.pickerAddingExtras){
+    const existing = p.items.find(i=>i.libId===libId);
+    if(existing){
+      p.items = p.items.filter(i=>i.id!==existing.id);
+      saveState();
+      refreshCategorySection(existing.cat);
+      recalcAll();
+      renderPickerSidebar();
+      renderPickerItems();
+      showToast('Voce rimossa');
+      return;
+    }
   }
   addItem(state.pickerTargetCatId, libItem);
   refreshCategorySection(state.pickerTargetCatId);
