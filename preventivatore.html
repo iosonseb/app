@@ -3073,6 +3073,7 @@ function newPreventivo(tipo='preventivo', sourceId=null){
       p.items = src.items.map(it => ({
         ...it,
         id: genId('item'),
+        prevItemId: it.id,
         eseguito: true,
         origin: 'preventivo'
       }));
@@ -4230,6 +4231,76 @@ function saveItemDesc(id, value){
   if(v) item.desc = v;
   saveState();
   refreshCategorySection(item.cat);
+}
+
+// ─────────────────────────────────────────────
+// Sincronizza il consuntivo collegato dopo ogni
+// modifica al preventivo origine
+// ─────────────────────────────────────────────
+function syncLinkedConsuntivo(){
+  const prev = getCurrentPrev();
+  if(!prev || prev.tipo !== 'preventivo' || !prev.linkedConsuntivoId) return;
+  const cons = state.preventivi.find(x => x.id === prev.linkedConsuntivoId);
+  if(!cons) return;
+
+  const extraItems   = cons.items.filter(i => i.origin === 'extra');
+  const prevConItems = cons.items.filter(i => i.origin !== 'extra');
+
+  // Migrazione retrocompatibile: se un item non ha prevItemId prova a trovarlo
+  // per descrizione + categoria nello stesso ordine
+  prevConItems.forEach((ci, idx) => {
+    if(ci.prevItemId) return;
+    const candidate = prev.items[idx];
+    if(candidate && candidate.desc === ci.desc && candidate.cat === ci.cat){
+      ci.prevItemId = candidate.id;
+    } else {
+      // fallback: cerca per desc+cat
+      const m = prev.items.find(pi =>
+        pi.desc === ci.desc && pi.cat === ci.cat &&
+        !prevConItems.some(o => o !== ci && o.prevItemId === pi.id)
+      );
+      if(m) ci.prevItemId = m.id;
+    }
+  });
+
+  const prevItemIds = new Set(prev.items.map(i => i.id));
+
+  // Rimuovi le voci del consuntivo che non esistono più nel preventivo
+  const surviving = prevConItems.filter(ci =>
+    !ci.prevItemId || prevItemIds.has(ci.prevItemId)
+  );
+
+  // Aggiorna i campi delle voci esistenti (preserva id, eseguito, origin)
+  surviving.forEach(ci => {
+    if(!ci.prevItemId) return;
+    const pi = prev.items.find(i => i.id === ci.prevItemId);
+    if(!pi) return;
+    const { id, eseguito, origin, prevItemId } = ci;
+    Object.assign(ci, pi, { id, eseguito, origin, prevItemId });
+  });
+
+  // Aggiungi le nuove voci del preventivo non ancora presenti nel consuntivo
+  const linkedIds = new Set(surviving.map(ci => ci.prevItemId).filter(Boolean));
+  const toAdd = prev.items
+    .filter(pi => !linkedIds.has(pi.id))
+    .map(pi => ({
+      ...pi,
+      id: genId('item'),
+      prevItemId: pi.id,
+      eseguito: true,
+      origin: 'preventivo'
+    }));
+
+  // Riordina seguendo l'ordine del preventivo; gli extra vanno in fondo
+  const order = prev.items.map(i => i.id);
+  const merged = [...surviving, ...toAdd];
+  merged.sort((a, b) => {
+    const ai = order.indexOf(a.prevItemId ?? '');
+    const bi = order.indexOf(b.prevItemId ?? '');
+    return (ai < 0 ? 9999 : ai) - (bi < 0 ? 9999 : bi);
+  });
+
+  cons.items = [...merged, ...extraItems];
 }
 
 function refreshCategorySection(catId, onlyOrigin){
