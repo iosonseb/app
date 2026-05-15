@@ -3302,6 +3302,7 @@ function restoreFromCestino(id){
           const restoredCons = _doRestore(JSON.parse(JSON.stringify(linkedConsInCestino)), null);
           restoredCons.sourceId = restoredPrev.id;
           restoredPrev.linkedConsuntivoId = restoredCons.id;
+          _syncConsuntivoItems(restoredPrev, restoredCons);
           saveState(); renderListView();
           showToast('Preventivo e consuntivo ripristinati');
         }
@@ -3342,13 +3343,19 @@ function restoreFromCestino(id){
           const restoredCons = _doRestore(p, null);
           restoredCons.sourceId = restoredPrev.id;
           restoredPrev.linkedConsuntivoId = restoredCons.id;
+          _syncConsuntivoItems(restoredPrev, restoredCons);
           saveState(); renderListView();
           showToast('Consuntivo e preventivo ripristinati');
         }
       );
     } else {
       // Ripristino normale (nessun preventivo collegato nel cestino)
-      _doRestore(p, null);
+      const restoredDoc = _doRestore(p, null);
+      // Se è un consuntivo, aggiorna le sue voci con lo stato attuale del preventivo
+      if(restoredDoc.tipo === 'consuntivo' && restoredDoc.sourceId){
+        const srcPrev = state.preventivi.find(x => x.id === restoredDoc.sourceId);
+        if(srcPrev) _syncConsuntivoItems(srcPrev, restoredDoc);
+      }
       saveState();
       renderListView();
       showToast('Documento ripristinato');
@@ -4418,14 +4425,11 @@ function saveItemDesc(id, value){
 }
 
 // ─────────────────────────────────────────────
-// Sincronizza il consuntivo collegato dopo ogni
-// modifica al preventivo origine
+// Sincronizza gli items del consuntivo con il
+// preventivo origine (funzione core riutilizzabile)
 // ─────────────────────────────────────────────
-function syncLinkedConsuntivo(){
-  const prev = getCurrentPrev();
-  if(!prev || prev.tipo !== 'preventivo' || !prev.linkedConsuntivoId) return;
-  const cons = state.preventivi.find(x => x.id === prev.linkedConsuntivoId);
-  if(!cons) return;
+function _syncConsuntivoItems(prev, cons){
+  if(!prev || !cons) return;
 
   const extraItems   = cons.items.filter(i => i.origin === 'extra');
   const prevConItems = cons.items.filter(i => i.origin !== 'extra');
@@ -4485,6 +4489,15 @@ function syncLinkedConsuntivo(){
   });
 
   cons.items = [...merged, ...extraItems];
+}
+
+// Chiamata dopo ogni modifica al preventivo corrente
+function syncLinkedConsuntivo(){
+  const prev = getCurrentPrev();
+  if(!prev || prev.tipo !== 'preventivo' || !prev.linkedConsuntivoId) return;
+  const cons = state.preventivi.find(x => x.id === prev.linkedConsuntivoId);
+  if(!cons) return;
+  _syncConsuntivoItems(prev, cons);
 }
 
 function refreshCategorySection(catId, onlyOrigin){
