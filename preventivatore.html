@@ -2903,7 +2903,8 @@ function showToast(msg, kind='success'){
   n.textContent = (kind==='success'?'✓ ':kind==='error'?'✕ ':kind==='warning'?'⚠ ':'') + msg;
   n.className = 'notif show '+kind;
   clearTimeout(n._t);
-  n._t = setTimeout(()=>n.classList.remove('show'), 2400);
+  const duration = (kind==='error' || kind==='warning') ? 5000 : 2600;
+  n._t = setTimeout(()=>n.classList.remove('show'), duration);
 }
 
 let _confirmCallback = null;
@@ -3205,7 +3206,11 @@ function restoreFromCestino(id){
   const yr = p.annoBase || getYearFromDate(p.data);
   const dup = state.preventivi.find(x=>x.id!==p.id && x.numero===p.numero && (x.annoBase||getYearFromDate(x.data))===yr && x.tipo===p.tipo);
   if(dup){
-    showToast(`Esiste già un ${p.tipo} N. ${formatDocNumber(p)}. Rinomina prima quello esistente.`,'error');
+    if(p.tipo==='consuntivo'){
+      showToast(`Esiste già un consuntivo N. ${formatDocNumber(p)} collegato a quel preventivo. Eliminalo prima di ripristinare questo.`,'error');
+    } else {
+      showToast(`Esiste già un preventivo N. ${formatDocNumber(p)}. Rinomina prima quello esistente.`,'error');
+    }
     return;
   }
 
@@ -3214,7 +3219,7 @@ function restoreFromCestino(id){
     const srcPrev = state.preventivi.find(x=>x.id===p._sourceId_bak);
     if(srcPrev && srcPrev.linkedConsuntivoId && srcPrev.linkedConsuntivoId!==p.id){
       const existing = state.preventivi.find(x=>x.id===srcPrev.linkedConsuntivoId);
-      showToast(`Il preventivo N. ${formatDocNumber(srcPrev)} ha già un consuntivo collegato (N. ${existing?formatDocNumber(existing):'?'}). Impossibile ripristinare.`,'error');
+      showToast(`Il preventivo N. ${formatDocNumber(srcPrev)} ha già un consuntivo collegato (N. ${existing?formatDocNumber(existing):'?'}). Eliminalo prima di ripristinare questo.`,'error');
       return;
     }
   }
@@ -4445,12 +4450,10 @@ function bulkColShow(field, checked, catId, onlyOrigin){
 function togglePdfPrices(){
   const p = getCurrentPrev();
   if(!p) return;
+  // Attiva tutto se nessuno è visibile, altrimenti nasconde tutto
   const anyShowing = p.items.some(i=>i.showPrice||i.showTotal);
   const newV = !anyShowing;
   p.items.forEach(i=>{ i.showPrice=newV; i.showTotal=newV; });
-  p.pdfShowPriceCol = newV;
-  p.pdfShowTotalCol = newV;
-  p.bulkShowMode = newV ? 'all' : 'none';
   saveState();
   renderBuilder();
   showToast(newV ? 'Prezzi visibili nel PDF' : 'Prezzi nascosti nel PDF');
@@ -5572,8 +5575,9 @@ function closePdfPreview(){
 function renderPdfCategorySection(p, cat, items, opts){
   if(!items.length) return '';
   const isCons = p.tipo==='consuntivo';
-  const showPriceCol = !opts?.hidePrices && p.pdfShowPriceCol!==false && items.some(i=>i.showPrice);
-  const showTotalCol = p.pdfShowTotalCol!==false && items.some(i=>i.showTotal);
+  // La colonna appare se almeno una voce ha il flag attivo — indipendente dal toggle globale
+  const showPriceCol = !opts?.hidePrices && items.some(i=>i.showPrice);
+  const showTotalCol = items.some(i=>i.showTotal);
   const showSubtotal = !opts?.hideSubtotal && p.catSubtotal && p.catSubtotal[cat.id]!==false;
   const catTot = items.reduce((s,it)=>{
     if(isCons && it.eseguito===false) return s;
