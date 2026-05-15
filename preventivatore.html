@@ -3290,11 +3290,53 @@ function restoreFromCestino(id){
       }
     );
   } else {
-    // Ripristino normale (nessun consuntivo collegato nel cestino)
-    _doRestore(p, null);
-    saveState();
-    renderListView();
-    showToast('Documento ripristinato');
+    // ── Consuntivo con preventivo origine nel cestino: chiedi se ripristinare anche il preventivo ──
+    const sourcePrevInCestino = (p.tipo==='consuntivo' && p._sourceId_bak)
+      ? state.cestino.find(x=>x.id===p._sourceId_bak)
+      : null;
+
+    if(sourcePrevInCestino){
+      // Controlla se il preventivo origine ha duplicati tra quelli attivi
+      const prevYr = sourcePrevInCestino.annoBase || getYearFromDate(sourcePrevInCestino.data);
+      const prevDup = state.preventivi.find(x=>x.id!==sourcePrevInCestino.id && x.numero===sourcePrevInCestino.numero && (x.annoBase||getYearFromDate(x.data))===prevYr && x.tipo===sourcePrevInCestino.tipo);
+
+      confirmDialog(
+        `Ripristinare anche il preventivo collegato N. ${formatDocNumber(sourcePrevInCestino)}?`,
+        prevDup
+          ? `⚠ Esiste già un preventivo con quel numero. Solo il consuntivo verrà ripristinato (scollegato dal preventivo).`
+          : 'Se non lo ripristini ora, puoi farlo dal cestino in seguito.',
+        () => {
+          // OK: ripristina entrambi (se non c'è conflitto di numero)
+          if(prevDup){
+            _doRestore(p, null);
+            saveState(); renderListView();
+            showToast('Consuntivo ripristinato (preventivo non ripristinato: numero duplicato)','warning');
+          } else {
+            const restoredPrev = _doRestore(JSON.parse(JSON.stringify(sourcePrevInCestino)), null);
+            const restoredCons = _doRestore(p, null);
+            restoredCons.sourceId = restoredPrev.id;
+            restoredPrev.linkedConsuntivoId = restoredCons.id;
+            saveState(); renderListView();
+            showToast('Consuntivo e preventivo ripristinati');
+          }
+        },
+        {
+          okLabel: prevDup ? 'Ripristina solo consuntivo' : 'Sì, ripristina entrambi',
+          cancelLabel: 'Solo consuntivo',
+          cancelCallback: () => {
+            _doRestore(p, null);
+            saveState(); renderListView();
+            showToast('Consuntivo ripristinato (senza preventivo)');
+          }
+        }
+      );
+    } else {
+      // Ripristino normale (nessun preventivo collegato nel cestino)
+      _doRestore(p, null);
+      saveState();
+      renderListView();
+      showToast('Documento ripristinato');
+    }
   }
 }
 
@@ -5642,7 +5684,7 @@ function buildPdfHtml(){
   let extraSectionsHtml = '';
   if(extraItems.length){
     const fakeExtraCat = {id:'_extra', name:'Opere Extra', color:'#3d7a5e'};
-    extraSectionsHtml = renderPdfCategorySection(p, fakeExtraCat, extraItems, {numStart:1, hidePrices:true, hideSubtotal:true});
+    extraSectionsHtml = renderPdfCategorySection(p, fakeExtraCat, extraItems, {numStart:1, hideSubtotal:true});
   }
 
   // Calcoli
