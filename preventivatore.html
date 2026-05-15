@@ -2210,19 +2210,8 @@ service cloud.firestore {
   <div class="setup-container">
 
     <div class="card">
-      <h2>Tipo Documento</h2>
-      <p class="setup-section-info">Seleziona se questo è un preventivo iniziale o un consuntivo finale.</p>
-      <div class="tipo-toggle">
-        <div class="tipo-option active" data-tipo="preventivo" onclick="setTipo('preventivo')">
-          <div class="tipo-name">📋 Preventivo</div>
-          <div class="tipo-desc">Stima dei lavori da eseguire</div>
-        </div>
-        <div class="tipo-option" data-tipo="consuntivo" onclick="setTipo('consuntivo')">
-          <div class="tipo-name">✓ Consuntivo</div>
-          <div class="tipo-desc">Resoconto lavori eseguiti + opere extra</div>
-        </div>
-      </div>
-      <div class="form-grid" style="margin-top:14px">
+      <h2 id="setup-card-title">Dati Documento</h2>
+      <div class="form-grid">
         <div class="form-group">
           <label>Numero documento</label>
           <div style="display:flex;align-items:center;gap:8px">
@@ -2345,6 +2334,7 @@ service cloud.firestore {
             <option value="generic">+ IVA</option>
           </select>
         </div>
+        <div id="builder-crea-cons-btn"></div>
         <button class="btn btn-primary btn-sm" onclick="openPdfPreview()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Anteprima PDF
@@ -3515,6 +3505,9 @@ function fillSetupForm(){
   const p = getCurrentPrev();
   if(!p) return;
   renderLogoArea();
+  // Titolo card in base al tipo documento
+  const cardTitle = document.getElementById('setup-card-title');
+  if(cardTitle) cardTitle.textContent = p.tipo==='consuntivo' ? 'Dati Consuntivo' : 'Dati Preventivo';
   const numeroInput = document.getElementById('f-numero');
   const isLocked = p.tipo==='consuntivo' && p.sourceId;
   numeroInput.value = p.numero;
@@ -3948,6 +3941,19 @@ function renderBuilder(){
     ${tipoBadge}
     <span class="builder-cli">${escHtml(p.client.nome||'Senza cliente')}${p.client.sito?' • '+escHtml(p.client.sito):''}</span>
   `;
+
+  // Pulsante "Crea consuntivo" (solo per preventivi senza consuntivo collegato)
+  const creaCons = document.getElementById('builder-crea-cons-btn');
+  if(creaCons){
+    if(p.tipo==='preventivo' && !p.linkedConsuntivoId){
+      creaCons.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="createConsuntivoFrom('${p.id}')" title="Crea consuntivo da questo preventivo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+        Crea consuntivo
+      </button>`;
+    } else {
+      creaCons.innerHTML = '';
+    }
+  }
 
   // Link bar: pulsante "Vai a preventivo/consuntivo" se collegato
   const linkBtns = document.getElementById('builder-link-btns');
