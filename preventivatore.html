@@ -414,17 +414,18 @@ input,select,textarea{font-family:inherit}
 }
 .tab-btn.active .tab-num{background:rgba(255,255,255,.25);color:white}
 .btn-resume{
-  background:var(--accent);
-  color:white;border:none;
+  background:transparent;
+  color:var(--muted);
+  border:1.5px solid var(--border);
   padding:9px 18px;border-radius:8px;
-  font-size:13px;font-weight:600;
+  font-size:13px;font-weight:500;
   display:inline-flex;align-items:center;gap:8px;
   transition:var(--transition);
-  box-shadow:0 2px 8px rgba(200,131,59,.3);
+  box-shadow:none;
   cursor:pointer;
   height:auto;
 }
-.btn-resume:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.btn-resume:hover{background:var(--cream);color:var(--ink);border-color:var(--muted-soft);transform:translateY(-1px)}
 .btn-resume .btn-resume-meta{
   font-size:10.5px;opacity:.85;font-weight:500;
 }
@@ -3918,9 +3919,9 @@ function renderListView(){
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
                   P↗
                 </button>`:''}
-                <button class="btn-icon" onclick="duplicatePreventivo('${p.id}')" title="Duplica">
+                ${p.tipo==='preventivo'?`<button class="btn-icon" onclick="duplicatePreventivo('${p.id}')" title="Duplica">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                </button>
+                </button>`:''}
                 <button class="btn-icon danger" onclick="deletePreventivo('${p.id}')" title="Sposta nel cestino">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
