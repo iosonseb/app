@@ -414,17 +414,19 @@ input,select,textarea{font-family:inherit}
 }
 .tab-btn.active .tab-num{background:rgba(255,255,255,.25);color:white}
 .btn-resume{
-  background:rgba(138,128,112,.08);
-  color:var(--ink-soft);border:1.5px solid var(--border-soft);
-  padding:8px 16px;border-radius:8px;
-  font-size:13px;font-weight:500;
+  background:var(--accent);
+  color:white;border:none;
+  padding:9px 18px;border-radius:8px;
+  font-size:13px;font-weight:600;
   display:inline-flex;align-items:center;gap:8px;
   transition:var(--transition);
+  box-shadow:0 2px 8px rgba(200,131,59,.3);
   cursor:pointer;
+  height:auto;
 }
-.btn-resume:hover{background:rgba(138,128,112,.14);border-color:var(--border)}
+.btn-resume:hover{background:var(--accent-hover);transform:translateY(-1px)}
 .btn-resume .btn-resume-meta{
-  font-size:10px;opacity:.65;font-weight:400;
+  font-size:10.5px;opacity:.85;font-weight:500;
 }
 
 /* header sync area */
@@ -1878,6 +1880,8 @@ input,select,textarea{font-family:inherit}
   .builder-container{padding:10px 10px 80px}
   .card{padding:16px}
   .card h2{font-size:15px}
+  /* Data input: contenuta nel box su mobile */
+  #f-date,input[type="date"]{width:100%;box-sizing:border-box;min-width:0}
 
   /* ── List ── */
   .list-header{margin-bottom:16px}
@@ -2322,6 +2326,7 @@ service cloud.firestore {
         <h2 id="builder-title-text"></h2>
       </div>
       <div class="builder-actions">
+        <div id="builder-link-btns" style="display:none"></div>
         <button class="btn btn-ghost btn-sm" onclick="openCatManager()" title="Gestisci categorie">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           Categorie
@@ -2511,7 +2516,7 @@ service cloud.firestore {
       <p class="confirm-sub" id="confirm-sub"></p>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeConfirm()">Annulla</button>
+      <button class="btn btn-ghost" id="confirm-cancel-btn" onclick="closeConfirm()">Annulla</button>
       <button class="btn btn-primary" id="confirm-ok-btn" onclick="confirmOk()">Conferma</button>
     </div>
   </div>
@@ -2823,22 +2828,6 @@ async function loadState(){
         if(it.qty==null && p.tipo) it.qty = 1;
         if(it.unit==='corpo') it.qty = 1; // corpo è sempre qty=1
       });
-      // Migrazione: ricostruisci sourceItemId per consuntivi collegati senza questo campo
-      if(p.tipo==='consuntivo' && p.sourceId){
-        const src = state.preventivi.find(x=>x.id===p.sourceId);
-        if(src){
-          p.items.forEach(consItem=>{
-            if(consItem.origin==='preventivo' && !consItem.sourceItemId){
-              // Cerca corrispondenza per libId o descrizione
-              const match = src.items.find(si =>
-                (si.libId && si.libId===consItem.libId) ||
-                si.desc===consItem.desc
-              );
-              if(match) consItem.sourceItemId = match.id;
-            }
-          });
-        }
-      }
     });
     // Migrazione: aggiorna nomi categorie predefinite + ripristina mancanti (es. elettrico cancellato)
     const _catUpdates = {
@@ -2934,8 +2923,10 @@ function showToast(msg, kind='success'){
 }
 
 let _confirmCallback = null;
+let _confirmCancelCallback = null;
 function confirmDialog(msg, sub, callback, opts={}){
   _confirmCallback = callback;
+  _confirmCancelCallback = opts.cancelCallback || null;
   document.getElementById('confirm-msg').textContent = msg;
   document.getElementById('confirm-sub').textContent = sub || '';
   document.getElementById('confirm-icon').textContent = opts.icon || '⚠';
@@ -2943,15 +2934,22 @@ function confirmDialog(msg, sub, callback, opts={}){
   const okBtn = document.getElementById('confirm-ok-btn');
   okBtn.textContent = opts.okLabel || 'Conferma';
   okBtn.className = 'btn ' + (opts.warn?'btn-primary':'btn-primary');
+  const cancelBtn = document.getElementById('confirm-cancel-btn');
+  if(cancelBtn) cancelBtn.textContent = opts.cancelLabel || 'Annulla';
   document.getElementById('modal-confirm').classList.add('open');
 }
 function closeConfirm(){
   document.getElementById('modal-confirm').classList.remove('open');
+  const cc = _confirmCancelCallback;
   _confirmCallback = null;
+  _confirmCancelCallback = null;
+  if(cc) cc();
 }
 function confirmOk(){
   const cb = _confirmCallback;
-  closeConfirm();
+  document.getElementById('modal-confirm').classList.remove('open');
+  _confirmCallback = null;
+  _confirmCancelCallback = null;
   if(cb) cb();
 }
 
@@ -3005,14 +3003,14 @@ function getNextNumber(year, excludeId=null){
 function autoLinkByNumber(p){
   // Crea/aggiorna collegamenti automatici tra preventivo e consuntivo con stesso numero+anno
   if(!p) return;
-  const py = getYearFromDate(p.data);
+  const py = p.annoBase || getYearFromDate(p.data);
   const opposite = p.tipo==='preventivo' ? 'consuntivo' : 'preventivo';
   const numClean = String(p.numero||'').replace(/^0+/,'') || '0';
   // Trova match
   const match = state.preventivi.find(x =>
     x.id !== p.id &&
     x.tipo === opposite &&
-    getYearFromDate(x.data) === py &&
+    (x.annoBase||getYearFromDate(x.data)) === py &&
     String(x.numero||'').replace(/^0+/,'') === numClean
   );
   // Pulisci link esistenti se cambiati
@@ -3085,10 +3083,12 @@ function newPreventivo(tipo='preventivo', sourceId=null){
       p.company = {...src.company};
       p.ivaMode = src.ivaMode;
       p.ivaRate = src.ivaRate;
+      // Mantieni l'anno del preventivo origine anche se il consuntivo viene creato in un anno diverso
+      p.annoBase = src.annoBase || getYearFromDate(src.data);
       p.items = src.items.map(it => ({
         ...it,
         id: genId('item'),
-        sourceItemId: it.id,
+        prevItemId: it.id,
         eseguito: true,
         origin: 'preventivo'
       }));
@@ -3112,7 +3112,8 @@ function newPreventivo(tipo='preventivo', sourceId=null){
 
 function formatDocNumber(p){
   if(!p) return '';
-  const year = getYearFromDate(p.data);
+  // Per i consuntivi usa l'anno del preventivo origine (annoBase), non la data del consuntivo
+  const year = p.annoBase || getYearFromDate(p.data);
   const prefix = p.tipo==='consuntivo' ? 'C ' : '';
   const copia = p.isCopia ? ' Copia' : '';
   return `${prefix}${p.numero}-${year}${copia}`;
@@ -3151,50 +3152,63 @@ function resumeLastOpened(){
   openPreventivo(id);
 }
 
+function _softDeleteDoc(doc){
+  // Helper: sposta un documento nel cestino (senza alterare i link sui doc collegati — gestito dal chiamante)
+  const copy = JSON.parse(JSON.stringify(doc));
+  copy._deletedAt = new Date().toISOString();
+  copy._linkedConsuntivoId_bak = doc.linkedConsuntivoId || null;
+  copy._sourceId_bak = doc.sourceId || null;
+  copy.linkedConsuntivoId = null;
+  copy.sourceId = null;
+  if(!state.cestino) state.cestino = [];
+  state.cestino.push(copy);
+  state.preventivi = state.preventivi.filter(x=>x.id!==doc.id);
+  if(state.currentId===doc.id){ state.currentId = null; }
+  if(state.lastOpenedId===doc.id){ state.lastOpenedId = null; }
+}
+
 function deletePreventivo(id){
   const p = state.preventivi.find(x=>x.id===id);
   if(!p) return;
-  confirmDialog(
-    `Spostare nel cestino il documento N. ${formatDocNumber(p)}?`,
-    'Potrai ripristinarlo dalla sezione Cestino.',
-    () => {
-      // Rimuovi link nei collegati (ma mantieni i riferimenti nel doc eliminato per eventuale ripristino)
-      if(p.tipo==='preventivo' && p.linkedConsuntivoId){
-        const c = state.preventivi.find(x=>x.id===p.linkedConsuntivoId);
-        if(c){ c.sourceId = null; }
+
+  // Se è un preventivo con consuntivo collegato: avvisa e cancella entrambi
+  const linkedCons = (p.tipo==='preventivo' && p.linkedConsuntivoId)
+    ? state.preventivi.find(x=>x.id===p.linkedConsuntivoId)
+    : null;
+
+  const title = `Spostare nel cestino il documento N. ${formatDocNumber(p)}?`;
+  const sub = linkedCons
+    ? `⚠ Il consuntivo collegato N. ${formatDocNumber(linkedCons)} verrà spostato nel cestino insieme al preventivo.`
+    : 'Potrai ripristinarlo dalla sezione Cestino.';
+
+  confirmDialog(title, sub, () => {
+    if(p.tipo==='preventivo'){
+      if(linkedCons){
+        // Soft-delete consuntivo (il link preventivo→consuntivo sparisce col preventivo)
+        _softDeleteDoc(linkedCons);
       }
-      if(p.tipo==='consuntivo' && p.sourceId){
-        const src = state.preventivi.find(x=>x.id===p.sourceId);
-        if(src){ src.linkedConsuntivoId = null; }
-      }
-      // Soft delete: sposta nel cestino
-      const copy = JSON.parse(JSON.stringify(p));
-      copy._deletedAt = new Date().toISOString();
-      copy._linkedConsuntivoId_bak = p.linkedConsuntivoId || null;
-      copy._sourceId_bak = p.sourceId || null;
-      copy.linkedConsuntivoId = null;
-      copy.sourceId = null;
-      if(!state.cestino) state.cestino = [];
-      state.cestino.push(copy);
-      state.preventivi = state.preventivi.filter(x=>x.id!==id);
-      // Se esistono copie dello stesso numero+anno+tipo e ora sono le uniche, rimuovi il badge "Copia"
-      const delYear = getYearFromDate(p.data);
-      state.preventivi.forEach(x=>{
-        if(x.isCopia && x.numero===p.numero && x.tipo===p.tipo && getYearFromDate(x.data)===delYear){
-          const conflicts = state.preventivi.filter(o=>o.id!==x.id && o.numero===x.numero && o.tipo===x.tipo && getYearFromDate(o.data)===delYear);
-          if(!conflicts.length) x.isCopia = false;
-        }
-      });
-      if(state.currentId===id){
-        state.currentId = null;
-        switchView('list');
-      }
-      if(state.lastOpenedId===id) state.lastOpenedId = null;
-      saveState();
-      renderListView();
-      showToast('Documento spostato nel cestino','info');
+    } else if(p.tipo==='consuntivo'){
+      // Rimuovi il riferimento sul preventivo origine
+      const src = state.preventivi.find(x=>x.id===p.sourceId);
+      if(src){ src.linkedConsuntivoId = null; }
     }
-  );
+
+    _softDeleteDoc(p);
+
+    // Se esistono copie dello stesso numero+anno+tipo e ora sono le uniche, rimuovi il badge "Copia"
+    const delYear = getYearFromDate(p.data);
+    state.preventivi.forEach(x=>{
+      if(x.isCopia && x.numero===p.numero && x.tipo===p.tipo && getYearFromDate(x.data)===delYear){
+        const conflicts = state.preventivi.filter(o=>o.id!==x.id && o.numero===x.numero && o.tipo===x.tipo && getYearFromDate(o.data)===delYear);
+        if(!conflicts.length) x.isCopia = false;
+      }
+    });
+
+    if(state.currentId===null){ switchView('list'); }
+    saveState();
+    renderListView();
+    showToast(linkedCons?'Preventivo e consuntivo spostati nel cestino':'Documento spostato nel cestino','info');
+  });
 }
 
 function restoreFromCestino(id){
@@ -3202,48 +3216,122 @@ function restoreFromCestino(id){
   const idx = state.cestino.findIndex(x=>x.id===id);
   if(idx===-1) return;
   const p = JSON.parse(JSON.stringify(state.cestino[idx]));
-  // Controlla duplicato numero tra preventivi attivi
-  const yr = getYearFromDate(p.data);
-  const dup = state.preventivi.find(x=>x.id!==p.id && x.numero===p.numero && getYearFromDate(x.data)===yr && x.tipo===p.tipo);
+
+  // ── Controllo duplicato numero tra preventivi attivi ──
+  const yr = p.annoBase || getYearFromDate(p.data);
+  const dup = state.preventivi.find(x=>x.id!==p.id && x.numero===p.numero && (x.annoBase||getYearFromDate(x.data))===yr && x.tipo===p.tipo);
   if(dup){
-    showToast(`Esiste già un ${p.tipo} con numero ${formatDocNumber(p)} (${yr}). Rinomina prima quello esistente.`,'error');
+    showToast(`Esiste già un ${p.tipo} N. ${formatDocNumber(p)}. Rinomina prima quello esistente.`,'error');
     return;
   }
-  // Ripristina link se possibili
-  delete p._deletedAt;
-  const linkedConsId = p._linkedConsuntivoId_bak;
-  const sourceId = p._sourceId_bak;
-  delete p._linkedConsuntivoId_bak;
-  delete p._sourceId_bak;
-  if(linkedConsId && state.preventivi.find(x=>x.id===linkedConsId)){
-    p.linkedConsuntivoId = linkedConsId;
-    state.preventivi.find(x=>x.id===linkedConsId).sourceId = p.id;
+
+  // ── Consuntivo: controlla che il preventivo origine non abbia già un altro consuntivo ──
+  if(p.tipo==='consuntivo' && p._sourceId_bak){
+    const srcPrev = state.preventivi.find(x=>x.id===p._sourceId_bak);
+    if(srcPrev && srcPrev.linkedConsuntivoId && srcPrev.linkedConsuntivoId!==p.id){
+      const existing = state.preventivi.find(x=>x.id===srcPrev.linkedConsuntivoId);
+      showToast(`Il preventivo N. ${formatDocNumber(srcPrev)} ha già un consuntivo collegato (N. ${existing?formatDocNumber(existing):'?'}). Impossibile ripristinare.`,'error');
+      return;
+    }
   }
-  if(sourceId && state.preventivi.find(x=>x.id===sourceId)){
-    p.sourceId = sourceId;
-    state.preventivi.find(x=>x.id===sourceId).linkedConsuntivoId = p.id;
+
+  // Helper: esegue effettivamente il ripristino di un singolo doc
+  const _doRestore = (doc, withLinkedConsId) => {
+    const restored = JSON.parse(JSON.stringify(doc));
+    delete restored._deletedAt;
+    const lc = restored._linkedConsuntivoId_bak;
+    const sc = restored._sourceId_bak;
+    delete restored._linkedConsuntivoId_bak;
+    delete restored._sourceId_bak;
+    // Ricollegamento con consuntivo (se presente e attivo)
+    if(withLinkedConsId){
+      restored.linkedConsuntivoId = withLinkedConsId;
+    } else if(lc && state.preventivi.find(x=>x.id===lc)){
+      restored.linkedConsuntivoId = lc;
+      state.preventivi.find(x=>x.id===lc).sourceId = restored.id;
+    }
+    // Ricollegamento con preventivo origine (per consuntivi)
+    if(sc && state.preventivi.find(x=>x.id===sc)){
+      restored.sourceId = sc;
+      state.preventivi.find(x=>x.id===sc).linkedConsuntivoId = restored.id;
+    }
+    state.cestino = state.cestino.filter(x=>x.id!==restored.id);
+    state.preventivi.push(restored);
+    return restored;
+  };
+
+  // ── Preventivo con consuntivo nel cestino: chiedi se ripristinare anche il consuntivo ──
+  const linkedConsInCestino = (p.tipo==='preventivo' && p._linkedConsuntivoId_bak)
+    ? state.cestino.find(x=>x.id===p._linkedConsuntivoId_bak)
+    : null;
+
+  if(linkedConsInCestino){
+    // Controlla duplicato numero per il consuntivo collegato
+    const consYr = linkedConsInCestino.annoBase || getYearFromDate(linkedConsInCestino.data);
+    const consDup = state.preventivi.find(x=>x.id!==linkedConsInCestino.id && x.numero===linkedConsInCestino.numero && (x.annoBase||getYearFromDate(x.data))===consYr && x.tipo===linkedConsInCestino.tipo);
+
+    confirmDialog(
+      `Ripristinare anche il consuntivo collegato N. ${formatDocNumber(linkedConsInCestino)}?`,
+      consDup
+        ? `⚠ Esiste già un consuntivo con quel numero. Solo il preventivo verrà ripristinato.`
+        : 'Se non lo ripristini ora, puoi farlo dal cestino in seguito.',
+      () => {
+        // Sì, ripristina entrambi (se non c'è conflitto di numero)
+        if(consDup){
+          _doRestore(p, null);
+          saveState(); renderListView();
+          showToast('Preventivo ripristinato (consuntivo non ripristinato: numero duplicato)','warning');
+        } else {
+          const restoredPrev = _doRestore(p, linkedConsInCestino.id);
+          const restoredCons = _doRestore(JSON.parse(JSON.stringify(linkedConsInCestino)), null);
+          restoredCons.sourceId = restoredPrev.id;
+          restoredPrev.linkedConsuntivoId = restoredCons.id;
+          saveState(); renderListView();
+          showToast('Preventivo e consuntivo ripristinati');
+        }
+      },
+      {
+        okLabel: consDup ? 'Ripristina solo preventivo' : 'Sì, ripristina entrambi',
+        cancelLabel: 'Solo preventivo',
+        cancelCallback: () => {
+          _doRestore(p, null);
+          saveState(); renderListView();
+          showToast('Preventivo ripristinato (senza consuntivo)');
+        }
+      }
+    );
+  } else {
+    // Ripristino normale (nessun consuntivo collegato nel cestino)
+    _doRestore(p, null);
+    saveState();
+    renderListView();
+    showToast('Documento ripristinato');
   }
-  state.cestino.splice(idx, 1);
-  state.preventivi.push(p);
-  saveState();
-  renderListView();
-  showToast('Documento ripristinato');
 }
 
 function permanentlyDeleteFromCestino(id){
   if(!state.cestino) return;
   const p = state.cestino.find(x=>x.id===id);
   if(!p) return;
-  confirmDialog(
-    `Eliminare definitivamente il documento N. ${formatDocNumber(p)}?`,
-    'Questa azione non può essere annullata.',
-    () => {
-      state.cestino = state.cestino.filter(x=>x.id!==id);
-      saveState();
-      renderListView();
-      showToast('Documento eliminato definitivamente');
+
+  // Se è un preventivo con consuntivo nel cestino, elimina entrambi
+  const linkedConsInCestino = (p.tipo==='preventivo' && p._linkedConsuntivoId_bak)
+    ? state.cestino.find(x=>x.id===p._linkedConsuntivoId_bak)
+    : null;
+  // Se è un consuntivo con preventivo nel cestino, elimina solo il consuntivo
+  const title = linkedConsInCestino
+    ? `Eliminare definitivamente il preventivo N. ${formatDocNumber(p)} e il consuntivo collegato N. ${formatDocNumber(linkedConsInCestino)}?`
+    : `Eliminare definitivamente il documento N. ${formatDocNumber(p)}?`;
+
+  confirmDialog(title, 'Questa azione non può essere annullata.', () => {
+    if(linkedConsInCestino){
+      state.cestino = state.cestino.filter(x=>x.id!==linkedConsInCestino.id);
     }
-  );
+    state.cestino = state.cestino.filter(x=>x.id!==id);
+    saveState();
+    renderListView();
+    showToast('Documento eliminato definitivamente');
+  });
 }
 
 function emptyTrash(){
@@ -3263,6 +3351,10 @@ function emptyTrash(){
 function duplicatePreventivo(id){
   const src = state.preventivi.find(x=>x.id===id);
   if(!src) return;
+  if(src.tipo==='consuntivo'){
+    showToast('Non è possibile duplicare un consuntivo. Crea un nuovo consuntivo dal preventivo.','warning');
+    return;
+  }
   const copy = JSON.parse(JSON.stringify(src));
   copy.id = genId('prev');
   copy.sourceId = null;
@@ -3287,6 +3379,10 @@ function createConsuntivoFrom(id){
 function setTipo(t){
   const p = getCurrentPrev();
   if(!p) return;
+  if(t==='consuntivo'){
+    showToast('I consuntivi si creano dalla schermata principale, cliccando "Consuntivo" nella card del preventivo','warning');
+    return;
+  }
   p.tipo = t;
   document.querySelectorAll('.tipo-option').forEach(el=>{
     el.classList.toggle('active', el.dataset.tipo===t);
@@ -3455,44 +3551,17 @@ function fillSetupForm(){
       cestinoWarnEl.style.display = 'none';
     }
   } else if(cestinoWarnEl){ cestinoWarnEl.style.display = 'none'; }
-  // Linked info
+  // Linked info (solo visualizzazione, nessun collegamento manuale)
   const linkedEl = document.getElementById('f-linked-info');
   let linkInfo = '';
-  if(p.tipo==='preventivo'){
-    if(p.linkedConsuntivoId){
-      const c = state.preventivi.find(x=>x.id===p.linkedConsuntivoId);
-      if(c) linkInfo = `📎 Consuntivo collegato: <strong>${formatDocNumber(c)}</strong>
-        <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="openPreventivo('${c.id}')">→ Apri</button>
-        <button class="btn btn-ghost btn-sm" style="margin-left:4px;color:var(--danger)" onclick="unlinkDocumento('${p.id}')">✕ Scollega</button>`;
-    } else {
-      // Mostra lista consuntivi non collegati con stesso numero o liberi
-      const candidati = state.preventivi.filter(x=>x.tipo==='consuntivo' && !x.sourceId);
-      if(candidati.length){
-        const opts = candidati.map(c=>`<option value="${c.id}">C ${formatDocNumber(c)} — ${escHtml(c.client?.nome||'senza cliente')}</option>`).join('');
-        linkInfo = `<span style="font-size:12px">Collega consuntivo:</span>
-          <select id="link-cons-select" style="font-size:12px;border:1.5px solid var(--border-soft);border-radius:6px;padding:3px 6px;background:var(--cream);font-family:inherit;margin-left:6px">
-            <option value="">— scegli —</option>${opts}
-          </select>
-          <button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="linkDocumento('${p.id}',document.getElementById('link-cons-select').value)">Collega</button>`;
-      }
-    }
-  } else if(p.tipo==='consuntivo'){
-    if(p.sourceId){
-      const src = state.preventivi.find(x=>x.id===p.sourceId);
-      if(src) linkInfo = `📎 Preventivo origine: <strong>${formatDocNumber(src)}</strong>
-        <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="openPreventivo('${src.id}')">→ Apri</button>
-        <button class="btn btn-ghost btn-sm" style="margin-left:4px;color:var(--danger)" onclick="unlinkDocumento('${p.id}')">✕ Scollega</button>`;
-    } else {
-      const candidati = state.preventivi.filter(x=>x.tipo==='preventivo' && !x.linkedConsuntivoId);
-      if(candidati.length){
-        const opts = candidati.map(c=>`<option value="${c.id}">${formatDocNumber(c)} — ${escHtml(c.client?.nome||'senza cliente')}</option>`).join('');
-        linkInfo = `<span style="font-size:12px">Collega preventivo:</span>
-          <select id="link-prev-select" style="font-size:12px;border:1.5px solid var(--border-soft);border-radius:6px;padding:3px 6px;background:var(--cream);font-family:inherit;margin-left:6px">
-            <option value="">— scegli —</option>${opts}
-          </select>
-          <button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="linkDocumento('${p.id}',document.getElementById('link-prev-select').value)">Collega</button>`;
-      }
-    }
+  if(p.tipo==='preventivo' && p.linkedConsuntivoId){
+    const c = state.preventivi.find(x=>x.id===p.linkedConsuntivoId);
+    if(c) linkInfo = `📎 Consuntivo collegato: <strong>N. ${formatDocNumber(c)}</strong>${c.client?.nome?' · '+escHtml(c.client.nome):''}
+      <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="openPreventivo('${c.id}')">→ Vai al consuntivo</button>`;
+  } else if(p.tipo==='consuntivo' && p.sourceId){
+    const src = state.preventivi.find(x=>x.id===p.sourceId);
+    if(src) linkInfo = `📎 Preventivo origine: <strong>N. ${formatDocNumber(src)}</strong>${src.client?.nome?' · '+escHtml(src.client.nome):''}
+      <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="openPreventivo('${src.id}')">→ Vai al preventivo</button>`;
   }
   if(linkInfo){ linkedEl.innerHTML = linkInfo; linkedEl.style.display = 'flex'; }
   else { linkedEl.style.display = 'none'; }
@@ -3554,6 +3623,11 @@ function setData(v){
   const p = getCurrentPrev();
   if(!p) return;
   p.data = v;
+  // Se è un preventivo con consuntivo collegato, aggiorna annoBase del consuntivo
+  if(p.tipo==='preventivo' && p.linkedConsuntivoId){
+    const cons = state.preventivi.find(x=>x.id===p.linkedConsuntivoId);
+    if(cons){ cons.annoBase = getYearFromDate(v); }
+  }
   // L'anno potrebbe essere cambiato → ricalcola auto-link
   autoLinkByNumber(p);
   saveState();
@@ -3874,6 +3948,26 @@ function renderBuilder(){
     <span class="builder-cli">${escHtml(p.client.nome||'Senza cliente')}${p.client.sito?' • '+escHtml(p.client.sito):''}</span>
   `;
 
+  // Link bar: pulsante "Vai a preventivo/consuntivo" se collegato
+  const linkBtns = document.getElementById('builder-link-btns');
+  if(linkBtns){
+    if(p.tipo==='preventivo' && p.linkedConsuntivoId){
+      const cons = state.preventivi.find(x=>x.id===p.linkedConsuntivoId);
+      if(cons){
+        linkBtns.style.display='';
+        linkBtns.innerHTML = `<button class="btn btn-ghost btn-sm" style="color:var(--success);border-color:var(--success)" onclick="openPreventivo('${cons.id}')">↔ Vai al consuntivo <strong>${escHtml(formatDocNumber(cons))}</strong></button>`;
+      } else { linkBtns.style.display='none'; linkBtns.innerHTML=''; }
+    } else if(p.tipo==='consuntivo' && p.sourceId){
+      const src = state.preventivi.find(x=>x.id===p.sourceId);
+      if(src){
+        linkBtns.style.display='';
+        linkBtns.innerHTML = `<button class="btn btn-ghost btn-sm" style="color:var(--info);border-color:var(--info)" onclick="openPreventivo('${src.id}')">↔ Vai al preventivo <strong>${escHtml(formatDocNumber(src))}</strong></button>`;
+      } else { linkBtns.style.display='none'; linkBtns.innerHTML=''; }
+    } else {
+      linkBtns.style.display='none'; linkBtns.innerHTML='';
+    }
+  }
+
   // IVA select
   const ivaSel = document.getElementById('iva-select');
   if(p.ivaMode==='exempt') ivaSel.value = 'exempt';
@@ -3888,13 +3982,6 @@ function renderBuilder(){
   if(p.tipo==='consuntivo'){
     // Sezione "lavori da preventivo": tutte le categorie con items origin='preventivo' (anche vuote stay coerenti)
     const mainCats = state.categories.filter(c => p.items.some(i => i.cat===c.id && (i.origin||'preventivo')==='preventivo'));
-    const linkedPrev = p.sourceId ? state.preventivi.find(x=>x.id===p.sourceId) : null;
-    const infoBanner = linkedPrev ? `
-      <div style="display:flex;align-items:center;gap:10px;background:var(--info-light);border:1.5px solid #c3d9f0;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:12.5px;color:var(--info)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
-        <span>Le voci dei <strong>Lavori da Preventivo</strong> sono sincronizzate con il preventivo origine (<strong>${escHtml(formatDocNumber(linkedPrev))}</strong>) e non sono modificabili qui. Modifica prezzi e quantità nel preventivo — il consuntivo si aggiornerà automaticamente. Puoi solo segnare le voci come "non eseguite" (✕).
-        <button class="btn btn-ghost btn-sm" style="margin-left:8px;font-size:11px" onclick="openPreventivo('${linkedPrev.id}')">→ Vai al preventivo</button></span>
-      </div>` : '';
     const mainHtml = mainCats.length
       ? mainCats.map(cat => renderCategorySection(cat, {onlyOrigin:'preventivo'})).join('')
       : `<div class="card" style="text-align:center;color:var(--muted);padding:30px"><em>Nessun lavoro da preventivo. Le voci copiate dal preventivo origine appariranno qui.</em></div>`;
@@ -3914,10 +4001,14 @@ function renderBuilder(){
           <span class="plus">＋</span> Aggiungi opera extra
         </button>
       </div>`;
-    cont.innerHTML = infoBanner + mainHtml + extraHtml;
+    cont.innerHTML = mainHtml + extraHtml;
   } else {
     cont.innerHTML = state.categories.map(cat => renderCategorySection(cat)).join('');
   }
+
+  // Show/hide "Aggiungi categoria" (solo nei preventivi)
+  const addCatRow = document.querySelector('.add-cat-row');
+  if(addCatRow) addCatRow.style.display = p.tipo==='consuntivo' ? 'none' : '';
 
   // Acconti
   renderAcconti();
@@ -3939,7 +4030,7 @@ function renderCategorySection(cat, opts={}){
     <div class="category-section" id="cat-section-${catId}${sectionIdSuffix}" ${isExtraSection?'data-extra="1"':''}>
       <div class="category-header ${items.length?'has-content':''}">
         <div class="category-header-left" style="flex:1;min-width:0">
-          <span class="cat-dot" style="background:${cat.color};cursor:pointer" onclick="event.stopPropagation();openColorPicker('${catId}')" title="Cambia colore"></span>
+          <span class="cat-dot" style="background:${isExtraSection?'#3d7a5e':cat.color}${isExtraSection?'':';cursor:pointer'}" ${isExtraSection?'':` onclick="event.stopPropagation();openColorPicker('${catId}')" title="Cambia colore"`}></span>
           ${isExtraSection ? `<h3 style="display:inline-flex;align-items:center;gap:6px"><span style="font-size:10px;background:var(--success);color:white;padding:2px 7px;border-radius:8px;font-family:'Inter',sans-serif">EXTRA</span> <span style="color:var(--success);font-family:'Inter',sans-serif;font-size:14px;font-weight:600">Opere Extra</span></h3>` : `<input class="cat-title-input" id="cat-title-${catId}" value="${escHtml(cat.name)}" onclick="event.stopPropagation()" oninput="renameCategoryFromBuilder('${catId}',this.value)" />`}
           <span class="cat-total" id="cat-total-${catId}${sectionIdSuffix}"></span>
         </div>
@@ -4060,11 +4151,9 @@ function renderItemsTable(items, onlyOrigin){
 }
 
 function renderItemRow(item, idx, isCons, canDelete=true){
-  const total = calcItem(item);
   const notExec = isCons && item.eseguito===false;
-  // Voci origin='preventivo' nel consuntivo: readonly su qty/price/unit/desc
-  const isConsLocked = isCons && (item.origin||'preventivo')==='preventivo';
-  const readonlyStyle = isConsLocked ? 'opacity:.5;cursor:not-allowed;pointer-events:none;background:var(--cream)' : '';
+  const rawTotal = (item.qty||0) * (item.price||0);
+  const total = notExec ? rawTotal : calcItem(item); // always full price for display
   return `
     <tr id="row-${item.id}" class="${notExec?'not-eseguito':''}"
         draggable="true"
@@ -4085,18 +4174,18 @@ function renderItemRow(item, idx, isCons, canDelete=true){
           ${notExec?'✕':'✓'}
         </button>
       </td>`:''}
-      <td class="desc-cell cell-desc" ${isConsLocked?'':'onclick="editItemDesc(\''+item.id+'\')"'} id="desc-${item.id}">
+      <td class="desc-cell cell-desc" onclick="editItemDesc('${item.id}')" id="desc-${item.id}">
         <span class="desc-text">${escHtml(item.desc)}</span>
-        ${isConsLocked ? `<span title="Voce dal preventivo — modificabile solo nel preventivo" style="font-size:10px;color:var(--muted-soft);margin-left:6px">🔒</span>` : `<span class="edit-pencil">✎</span>`}
+        <span class="edit-pencil">✎</span>
       </td>
       <td class="center cell-unit">
-        <select class="unit-select" onchange="updateItem('${item.id}','unit',this.value)" style="${readonlyStyle}" ${isConsLocked?'disabled':''}>
+        <select class="unit-select" onchange="updateItem('${item.id}','unit',this.value)">
           ${UNITS.map(u=>`<option value="${u}" ${item.unit===u?'selected':''}>${u}</option>`).join('')}
         </select>
       </td>
       <td class="center cell-qty">
-        ${(item.unit==='corpo' || isConsLocked)
-          ? `<input class="qty-input" type="number" value="${isConsLocked ? (item.qty??1) : 1}" readonly
+        ${item.unit==='corpo'
+          ? `<input class="qty-input" type="number" value="1" readonly
                style="opacity:.4;cursor:not-allowed;background:var(--cream);pointer-events:none">`
           : `<input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
                placeholder="0" onchange="updateItem('${item.id}','qty',this.value)">`}
@@ -4106,8 +4195,8 @@ function renderItemRow(item, idx, isCons, canDelete=true){
         <div class="cell-with-toggle">
           <div class="euro-wrap"><input class="price-input${(!item.price && item.price!==undefined)?'':''}" type="number" min="0" step="any" value="${item.price??''}"
             placeholder="0,00" onchange="updateItem('${item.id}','price',this.value)"
-            style="${isConsLocked ? readonlyStyle : (!item.price?'color:var(--danger);border-color:#f3d6d6;background:#fef4f4':'')}"
-            ${isConsLocked ? 'readonly' : `oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'"`}></div>
+            style="${!item.price?'color:var(--danger);border-color:#f3d6d6;background:#fef4f4':''}"
+            oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'"></div>
           <button class="eye-btn${item.showPrice?' eye-open':' eye-closed'}"
             onclick="event.stopPropagation();updateItem('${item.id}','showPrice',${!item.showPrice})"
             title="${item.showPrice?'Nascondi dal PDF':'Mostra nel PDF'}">
@@ -4182,10 +4271,7 @@ function addItem(catId, libItem){
   if(cur && cur.tipo==='consuntivo') newItem.origin = 'extra';
   newItem._memKey = memKey;
   p.items.push(newItem);
-  // Propaga al consuntivo collegato (solo se siamo nel preventivo e la voce è origin='preventivo')
-  if(p.tipo==='preventivo' && p.linkedConsuntivoId && newItem.origin==='preventivo'){
-    syncAddItemToConsuntivo(p, newItem);
-  }
+  syncLinkedConsuntivo();
   saveState();
 }
 
@@ -4194,16 +4280,8 @@ function removeItem(id){
   if(!p) return;
   const item = getItemById(id);
   if(!item) return;
-  // Blocca rimozione di voci origin='preventivo' nel consuntivo
-  if(p.tipo==='consuntivo' && (item.origin||'preventivo')==='preventivo'){
-    showToast('Questa voce proviene dal preventivo e non può essere eliminata dal consuntivo.','warning');
-    return;
-  }
   p.items = p.items.filter(i=>i.id!==id);
-  // Propaga rimozione al consuntivo collegato
-  if(p.tipo==='preventivo' && p.linkedConsuntivoId){
-    syncRemoveItemFromConsuntivo(p, id);
-  }
+  syncLinkedConsuntivo();
   saveState();
   refreshCategorySection(item.cat);
   recalcAll();
@@ -4213,14 +4291,6 @@ function removeItem(id){
 function updateItem(id, field, value){
   const item = getItemById(id);
   if(!item) return;
-  const p = getCurrentPrev();
-
-  // Blocca modifica di qty/price/unit/desc per voci origin='preventivo' nel consuntivo
-  if(p && p.tipo==='consuntivo' && (item.origin||'preventivo')==='preventivo'){
-    const blockedFields = ['qty','price','unit','desc'];
-    if(blockedFields.includes(field)) return;
-  }
-
   if(field==='qty' || field==='price'){
     item[field] = (value===''||value==null) ? null : parseFloat(value);
   }else if(field==='showPrice' || field==='showTotal'){
@@ -4242,50 +4312,14 @@ function updateItem(id, field, value){
     if(field==='unit') state.priceMemory[item._memKey].unit = item.unit;
   }
   const tcell = document.getElementById('total-'+id);
-  if(tcell) tcell.textContent = fmtCur(calcItem(item));
-
-  // Propaga modifiche al consuntivo collegato (se siamo nel preventivo)
-  if(p && p.tipo==='preventivo' && p.linkedConsuntivoId){
-    syncItemToConsuntivo(p, id, field, item[field]);
+  if(tcell){
+    // Per not-eseguito: mostra il prezzo originale (barrato via CSS), non zero
+    const rawTot = (item.qty||0)*(item.price||0);
+    tcell.textContent = fmtCur(item.eseguito===false ? rawTot : calcItem(item));
   }
-
+  syncLinkedConsuntivo();
   saveState();
   recalcAll();
-}
-
-function syncItemToConsuntivo(prev, prevItemId, field, value){
-  const cons = state.preventivi.find(x=>x.id===prev.linkedConsuntivoId);
-  if(!cons) return;
-  // Trova l'item nel consuntivo che corrisponde all'item del preventivo
-  const consItem = cons.items.find(ci => ci.sourceItemId===prevItemId && (ci.origin||'preventivo')==='preventivo');
-  if(!consItem) return;
-  const syncFields = ['qty','price','unit','desc','cat','showPrice','showTotal'];
-  if(!syncFields.includes(field)) return;
-  if(field==='qty' || field==='price'){
-    consItem[field] = value;
-  } else {
-    consItem[field] = value;
-  }
-  if(field==='unit' && value==='corpo') consItem.qty = 1;
-}
-
-function syncAddItemToConsuntivo(prev, newItem){
-  const cons = state.preventivi.find(x=>x.id===prev.linkedConsuntivoId);
-  if(!cons) return;
-  const copy = {
-    ...newItem,
-    id: genId('item'),
-    sourceItemId: newItem.id,
-    eseguito: true,
-    origin: 'preventivo'
-  };
-  cons.items.push(copy);
-}
-
-function syncRemoveItemFromConsuntivo(prev, prevItemId){
-  const cons = state.preventivi.find(x=>x.id===prev.linkedConsuntivoId);
-  if(!cons) return;
-  cons.items = cons.items.filter(ci => !(ci.sourceItemId===prevItemId && (ci.origin||'preventivo')==='preventivo'));
 }
 
 function toggleEseguito(id){
@@ -4314,20 +4348,81 @@ function editItemDesc(id){
 function saveItemDesc(id, value){
   const item = getItemById(id);
   if(!item) return;
-  const p = getCurrentPrev();
-  // Blocca modifica descrizione per voci origin='preventivo' nel consuntivo
-  if(p && p.tipo==='consuntivo' && (item.origin||'preventivo')==='preventivo'){
-    refreshCategorySection(item.cat);
-    return;
-  }
   const v = (value||'').trim();
   if(v) item.desc = v;
-  // Propaga al consuntivo collegato
-  if(p && p.tipo==='preventivo' && p.linkedConsuntivoId){
-    syncItemToConsuntivo(p, id, 'desc', item.desc);
-  }
+  syncLinkedConsuntivo();
   saveState();
   refreshCategorySection(item.cat);
+}
+
+// ─────────────────────────────────────────────
+// Sincronizza il consuntivo collegato dopo ogni
+// modifica al preventivo origine
+// ─────────────────────────────────────────────
+function syncLinkedConsuntivo(){
+  const prev = getCurrentPrev();
+  if(!prev || prev.tipo !== 'preventivo' || !prev.linkedConsuntivoId) return;
+  const cons = state.preventivi.find(x => x.id === prev.linkedConsuntivoId);
+  if(!cons) return;
+
+  const extraItems   = cons.items.filter(i => i.origin === 'extra');
+  const prevConItems = cons.items.filter(i => i.origin !== 'extra');
+
+  // Migrazione retrocompatibile: se un item non ha prevItemId prova a trovarlo
+  // per descrizione + categoria nello stesso ordine
+  prevConItems.forEach((ci, idx) => {
+    if(ci.prevItemId) return;
+    const candidate = prev.items[idx];
+    if(candidate && candidate.desc === ci.desc && candidate.cat === ci.cat){
+      ci.prevItemId = candidate.id;
+    } else {
+      // fallback: cerca per desc+cat
+      const m = prev.items.find(pi =>
+        pi.desc === ci.desc && pi.cat === ci.cat &&
+        !prevConItems.some(o => o !== ci && o.prevItemId === pi.id)
+      );
+      if(m) ci.prevItemId = m.id;
+    }
+  });
+
+  const prevItemIds = new Set(prev.items.map(i => i.id));
+
+  // Rimuovi le voci del consuntivo che non esistono più nel preventivo
+  const surviving = prevConItems.filter(ci =>
+    !ci.prevItemId || prevItemIds.has(ci.prevItemId)
+  );
+
+  // Aggiorna i campi delle voci esistenti (preserva id, eseguito, origin)
+  surviving.forEach(ci => {
+    if(!ci.prevItemId) return;
+    const pi = prev.items.find(i => i.id === ci.prevItemId);
+    if(!pi) return;
+    const { id, eseguito, origin, prevItemId } = ci;
+    Object.assign(ci, pi, { id, eseguito, origin, prevItemId });
+  });
+
+  // Aggiungi le nuove voci del preventivo non ancora presenti nel consuntivo
+  const linkedIds = new Set(surviving.map(ci => ci.prevItemId).filter(Boolean));
+  const toAdd = prev.items
+    .filter(pi => !linkedIds.has(pi.id))
+    .map(pi => ({
+      ...pi,
+      id: genId('item'),
+      prevItemId: pi.id,
+      eseguito: true,
+      origin: 'preventivo'
+    }));
+
+  // Riordina seguendo l'ordine del preventivo; gli extra vanno in fondo
+  const order = prev.items.map(i => i.id);
+  const merged = [...surviving, ...toAdd];
+  merged.sort((a, b) => {
+    const ai = order.indexOf(a.prevItemId ?? '');
+    const bi = order.indexOf(b.prevItemId ?? '');
+    return (ai < 0 ? 9999 : ai) - (bi < 0 ? 9999 : bi);
+  });
+
+  cons.items = [...merged, ...extraItems];
 }
 
 function refreshCategorySection(catId, onlyOrigin){
@@ -4518,6 +4613,7 @@ function drop(e, tgtId){
   let insertAt = p.items.findIndex(i=>i.id===tgtId);
   if(!before) insertAt++;
   p.items.splice(insertAt, 0, srcItem);
+  syncLinkedConsuntivo();
   saveState();
   dragEnd(e);
   renderBuilder();
@@ -4536,7 +4632,7 @@ function openPicker(targetCatId, asExtra=false){
   const cat = getCategoryById(targetCatId);
   const extraSuffix = asExtra ? ' come <strong>opera extra</strong>' : '';
   document.getElementById('picker-target-banner').innerHTML =
-    `Voci aggiunte alla categoria <strong>${escHtml(cat?cat.name:'?')}</strong>${extraSuffix}. Puoi scegliere da qualsiasi categoria.`;
+    `<strong>${escHtml(cat?cat.name:'?')}</strong>${extraSuffix}. Puoi scegliere da qualsiasi categoria.`;
   renderPickerCatTabs();
   renderPickerItems();
   renderPickerSidebar();
@@ -5480,7 +5576,7 @@ function closePdfPreview(){
 function renderPdfCategorySection(p, cat, items, opts){
   if(!items.length) return '';
   const isCons = p.tipo==='consuntivo';
-  const showPriceCol = p.pdfShowPriceCol!==false && items.some(i=>i.showPrice);
+  const showPriceCol = !opts?.hidePrices && p.pdfShowPriceCol!==false && items.some(i=>i.showPrice);
   const showTotalCol = p.pdfShowTotalCol!==false && items.some(i=>i.showTotal);
   const showSubtotal = p.catSubtotal && p.catSubtotal[cat.id]!==false;
   const catTot = items.reduce((s,it)=>{
@@ -5546,7 +5642,7 @@ function buildPdfHtml(){
   let extraSectionsHtml = '';
   if(extraItems.length){
     const fakeExtraCat = {id:'_extra', name:'Opere Extra', color:'#3d7a5e'};
-    extraSectionsHtml = renderPdfCategorySection(p, fakeExtraCat, extraItems, {numStart:1});
+    extraSectionsHtml = renderPdfCategorySection(p, fakeExtraCat, extraItems, {numStart:1, hidePrices:true});
   }
 
   // Calcoli
