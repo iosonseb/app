@@ -2424,7 +2424,6 @@ service cloud.firestore {
         </button>
       </div>
     </div>
-    <div class="picker-target-banner" id="picker-target-banner"></div>
     <div class="picker-layout">
       <div class="picker-main">
         <div class="picker-search-row">
@@ -4638,8 +4637,6 @@ function openPicker(targetCatId, asExtra=false){
   resetSaveToLibrary();
   const cat = getCategoryById(targetCatId);
   const extraSuffix = asExtra ? ' come <strong>opera extra</strong>' : '';
-  document.getElementById('picker-target-banner').innerHTML =
-    `<strong>${escHtml(cat?cat.name:'?')}</strong>${extraSuffix}. Puoi scegliere da qualsiasi categoria.`;
   renderPickerCatTabs();
   renderPickerItems();
   renderPickerSidebar();
@@ -5585,7 +5582,7 @@ function renderPdfCategorySection(p, cat, items, opts){
   const isCons = p.tipo==='consuntivo';
   const showPriceCol = !opts?.hidePrices && p.pdfShowPriceCol!==false && items.some(i=>i.showPrice);
   const showTotalCol = p.pdfShowTotalCol!==false && items.some(i=>i.showTotal);
-  const showSubtotal = p.catSubtotal && p.catSubtotal[cat.id]!==false;
+  const showSubtotal = !opts?.hideSubtotal && p.catSubtotal && p.catSubtotal[cat.id]!==false;
   const catTot = items.reduce((s,it)=>{
     if(isCons && it.eseguito===false) return s;
     return s + (it.qty||0)*(it.price||0);
@@ -5649,7 +5646,7 @@ function buildPdfHtml(){
   let extraSectionsHtml = '';
   if(extraItems.length){
     const fakeExtraCat = {id:'_extra', name:'Opere Extra', color:'#3d7a5e'};
-    extraSectionsHtml = renderPdfCategorySection(p, fakeExtraCat, extraItems, {numStart:1, hidePrices:true});
+    extraSectionsHtml = renderPdfCategorySection(p, fakeExtraCat, extraItems, {numStart:1, hidePrices:true, hideSubtotal:true});
   }
 
   // Calcoli
