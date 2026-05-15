@@ -1581,6 +1581,7 @@ input,select,textarea{font-family:inherit}
 .confirm-icon.warn{background:#fef4e6;color:var(--accent)}
 .confirm-msg{font-size:14.5px;line-height:1.5;color:var(--ink);margin-bottom:6px}
 .confirm-sub{font-size:12.5px;color:var(--muted);margin-bottom:0}
+#confirm-ok-btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
 
 /* ─── PDF PREVIEW MODAL ─── */
 #modal-pdf .modal-box{max-width:920px;height:calc(100vh - 48px)}
@@ -2909,6 +2910,7 @@ function showToast(msg, kind='success'){
 
 let _confirmCallback = null;
 let _confirmCancelCallback = null;
+let _confirmCountdownTimer = null;
 function confirmDialog(msg, sub, callback, opts={}){
   _confirmCallback = callback;
   _confirmCancelCallback = opts.cancelCallback || null;
@@ -2917,13 +2919,36 @@ function confirmDialog(msg, sub, callback, opts={}){
   document.getElementById('confirm-icon').textContent = opts.icon || '⚠';
   document.getElementById('confirm-icon').className = 'confirm-icon ' + (opts.warn?'warn':'');
   const okBtn = document.getElementById('confirm-ok-btn');
-  okBtn.textContent = opts.okLabel || 'Conferma';
-  okBtn.className = 'btn ' + (opts.warn?'btn-primary':'btn-primary');
+  okBtn.className = 'btn btn-primary';
+  const okLabel = opts.okLabel || 'Conferma';
   const cancelBtn = document.getElementById('confirm-cancel-btn');
   if(cancelBtn) cancelBtn.textContent = opts.cancelLabel || 'Annulla';
+  // Countdown
+  if(_confirmCountdownTimer){ clearInterval(_confirmCountdownTimer); _confirmCountdownTimer = null; }
+  if(opts.countdown){
+    let remaining = opts.countdown;
+    okBtn.textContent = `${okLabel} (${remaining})`;
+    okBtn.disabled = true;
+    _confirmCountdownTimer = setInterval(()=>{
+      remaining--;
+      if(remaining <= 0){
+        clearInterval(_confirmCountdownTimer);
+        _confirmCountdownTimer = null;
+        okBtn.disabled = false;
+        okBtn.textContent = okLabel;
+      } else {
+        okBtn.textContent = `${okLabel} (${remaining})`;
+      }
+    }, 1000);
+  } else {
+    okBtn.textContent = okLabel;
+    okBtn.disabled = false;
+  }
   document.getElementById('modal-confirm').classList.add('open');
 }
 function closeConfirm(){
+  if(_confirmCountdownTimer){ clearInterval(_confirmCountdownTimer); _confirmCountdownTimer = null; }
+  document.getElementById('confirm-ok-btn').disabled = false;
   document.getElementById('modal-confirm').classList.remove('open');
   const cc = _confirmCancelCallback;
   _confirmCallback = null;
@@ -2931,6 +2956,8 @@ function closeConfirm(){
   if(cc) cc();
 }
 function confirmOk(){
+  if(_confirmCountdownTimer){ clearInterval(_confirmCountdownTimer); _confirmCountdownTimer = null; }
+  document.getElementById('confirm-ok-btn').disabled = false;
   const cb = _confirmCallback;
   document.getElementById('modal-confirm').classList.remove('open');
   _confirmCallback = null;
@@ -3300,34 +3327,23 @@ function restoreFromCestino(id){
       const prevYr = sourcePrevInCestino.annoBase || getYearFromDate(sourcePrevInCestino.data);
       const prevDup = state.preventivi.find(x=>x.id!==sourcePrevInCestino.id && x.numero===sourcePrevInCestino.numero && (x.annoBase||getYearFromDate(x.data))===prevYr && x.tipo===sourcePrevInCestino.tipo);
 
+      if(prevDup){
+        // Impossibile ripristinare: il preventivo collegato ha un conflitto di numero
+        showToast(`Il preventivo collegato N. ${formatDocNumber(sourcePrevInCestino)} esiste già tra i documenti attivi. Eliminalo prima di ripristinare questo consuntivo.`,'error');
+        return;
+      }
+
+      // Ripristino obbligatorio di entrambi
       confirmDialog(
-        `Ripristinare anche il preventivo collegato N. ${formatDocNumber(sourcePrevInCestino)}?`,
-        prevDup
-          ? `⚠ Esiste già un preventivo con quel numero. Solo il consuntivo verrà ripristinato (scollegato dal preventivo).`
-          : 'Se non lo ripristini ora, puoi farlo dal cestino in seguito.',
+        `Ripristinare il consuntivo N. ${formatDocNumber(p)}?`,
+        `Verrà ripristinato anche il preventivo collegato N. ${formatDocNumber(sourcePrevInCestino)}.`,
         () => {
-          // OK: ripristina entrambi (se non c'è conflitto di numero)
-          if(prevDup){
-            _doRestore(p, null);
-            saveState(); renderListView();
-            showToast('Consuntivo ripristinato (preventivo non ripristinato: numero duplicato)','warning');
-          } else {
-            const restoredPrev = _doRestore(JSON.parse(JSON.stringify(sourcePrevInCestino)), null);
-            const restoredCons = _doRestore(p, null);
-            restoredCons.sourceId = restoredPrev.id;
-            restoredPrev.linkedConsuntivoId = restoredCons.id;
-            saveState(); renderListView();
-            showToast('Consuntivo e preventivo ripristinati');
-          }
-        },
-        {
-          okLabel: prevDup ? 'Ripristina solo consuntivo' : 'Sì, ripristina entrambi',
-          cancelLabel: 'Solo consuntivo',
-          cancelCallback: () => {
-            _doRestore(p, null);
-            saveState(); renderListView();
-            showToast('Consuntivo ripristinato (senza preventivo)');
-          }
+          const restoredPrev = _doRestore(JSON.parse(JSON.stringify(sourcePrevInCestino)), null);
+          const restoredCons = _doRestore(p, null);
+          restoredCons.sourceId = restoredPrev.id;
+          restoredPrev.linkedConsuntivoId = restoredCons.id;
+          saveState(); renderListView();
+          showToast('Consuntivo e preventivo ripristinati');
         }
       );
     } else {
@@ -3375,7 +3391,8 @@ function emptyTrash(){
       saveState();
       renderListView();
       showToast('Cestino svuotato');
-    }
+    },
+    { countdown: 5 }
   );
 }
 
