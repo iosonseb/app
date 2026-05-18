@@ -4054,11 +4054,14 @@ function renderBuilder(){
   // Pulsante "Crea consuntivo" (solo per preventivi senza consuntivo collegato)
   const creaCons = document.getElementById('builder-crea-cons-btn');
   if(creaCons){
-    const showCrea = p.tipo==='preventivo' && !p.linkedConsuntivoId;
-    creaCons.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="createConsuntivoFrom('${p.id}')" title="Crea consuntivo da questo preventivo" style="visibility:${showCrea?'visible':'hidden'}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
-      Crea consuntivo
-    </button>`;
+    if(p.tipo==='preventivo' && !p.linkedConsuntivoId){
+      creaCons.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="createConsuntivoFrom('${p.id}')" title="Crea consuntivo da questo preventivo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+        Crea consuntivo
+      </button>`;
+    } else {
+      creaCons.innerHTML = '';
+    }
   }
 
   // Link bar: pulsante "Vai a preventivo/consuntivo" se collegato
