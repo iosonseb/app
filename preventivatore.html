@@ -4093,9 +4093,9 @@ function renderBuilder(){
   // Bulk toggle label
   updatePdfPricesLabel();
 
-  // ── Punto 1: mostra/nascondi pulsante Categorie (solo nei preventivi) ──
+  // ── Punto 1: pulsante Categorie sempre visibile ──
   const btnCat = document.getElementById('btn-categorie');
-  if(btnCat) btnCat.style.display = p.tipo==='consuntivo' ? 'none' : '';
+  if(btnCat) btnCat.style.display = '';
 
   // ── Punto 3: lock state ──
   if(p.locked == null) p.locked = false;
