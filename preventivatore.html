@@ -5521,6 +5521,20 @@ function catDrop(e,tgtId){
 // ═══════════════════════════════════════════════
 // ACCONTI
 // ═══════════════════════════════════════════════
+
+// Propaga gli acconti del documento corrente al documento collegato (preventivo↔consuntivo)
+function _syncAccontiToLinked(){
+  const p = getCurrentPrev();
+  if(!p) return;
+  let linked = null;
+  if(p.tipo === 'preventivo' && p.linkedConsuntivoId)
+    linked = state.preventivi.find(x => x.id === p.linkedConsuntivoId);
+  else if(p.tipo === 'consuntivo' && p.sourceId)
+    linked = state.preventivi.find(x => x.id === p.sourceId);
+  if(!linked) return;
+  linked.acconti = JSON.parse(JSON.stringify(p.acconti || []));
+}
+
 function addAcconto(){
   if(_isLocked()){ _warnLocked(); return; }
   const p = getCurrentPrev();
@@ -5534,6 +5548,7 @@ function addAcconto(){
     importo: null,
     note: ''
   });
+  _syncAccontiToLinked();
   saveState();
   renderAcconti();
   recalcAll();
@@ -5544,6 +5559,7 @@ function removeAcconto(id){
   const p = getCurrentPrev();
   if(!p || !p.acconti) return;
   p.acconti = p.acconti.filter(a=>a.id!==id);
+  _syncAccontiToLinked();
   saveState();
   renderAcconti();
   recalcAll();
@@ -5560,6 +5576,7 @@ function updateAcconto(id, field, value){
   }else{
     a[field] = value;
   }
+  _syncAccontiToLinked();
   saveState();
   updateAccontiSummary();
 }
