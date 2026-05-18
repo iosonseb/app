@@ -1077,6 +1077,10 @@ input,select,textarea{font-family:inherit}
 }
 .cat-add-btn-prominent:active{transform:translateY(0)}
 .cat-add-btn-prominent .plus{font-size:18px;font-weight:300;line-height:1}
+/* Elementi bloccati: cursore di divieto, aspetto dimmed, nessun hover */
+.locked-action,.locked-action *{cursor:not-allowed !important}
+.locked-action{opacity:0.4 !important;transform:none !important;box-shadow:none !important}
+.locked-action:hover{transform:none !important;box-shadow:none !important;background:inherit !important;border-color:inherit !important;color:inherit !important}
 
 /* Categoria title input inline */
 .cat-title-input{
@@ -4133,9 +4137,11 @@ function renderBuilder(){
         return html;
       }).join('');
     }
+    const _extraLocked = !!p.locked;
     extraHtml += `
       <div style="display:flex;justify-content:center;margin:14px 0">
-        <button class="cat-add-btn-prominent" onclick="openExtraPicker()">
+        <button class="cat-add-btn-prominent${_extraLocked?' locked-action':''}"
+          onclick="${_extraLocked?'event.stopPropagation();_warnLocked()':'openExtraPicker()'}">
           <span class="plus">＋</span> Aggiungi opera extra
         </button>
       </div>`;
@@ -4192,12 +4198,15 @@ function renderCategorySection(cat, opts={}){
           ? `<div class="cat-empty-state">${isExtraSection?'Nessun extra ancora in questa categoria.':'Nessuna voce ancora.'} ${(p.tipo==='consuntivo'&&onlyOrigin==='preventivo')?'<br><em style="font-size:11.5px">Le voci da preventivo si modificano dal preventivo origine; qui puoi solo barrarle come "non eseguite".</em>':'Clicca <strong>+ Aggiungi voce</strong> qui sotto.'}</div>`
           : renderItemsTable(items, onlyOrigin, opts.numStart||1)
         }
-        ${(p.tipo==='consuntivo' && onlyOrigin==='preventivo') ? '' : `
-          <div class="cat-add-bar">
-            <button class="cat-add-btn-prominent" onclick="openPicker('${catId}',${isExtraSection?'true':'false'})">
+        ${(p.tipo==='consuntivo' && onlyOrigin==='preventivo') ? '' : (() => {
+          const locked = !!p.locked;
+          return `<div class="cat-add-bar">
+            <button class="cat-add-btn-prominent${locked?' locked-action':''}"
+              onclick="${locked?'event.stopPropagation();_warnLocked()':`openPicker('${catId}',${isExtraSection?'true':'false'})`}">
               <span class="plus">＋</span> Aggiungi voce${isExtraSection?' extra':''}
             </button>
-          </div>`}
+          </div>`;
+        })()}
       </div>
     </div>
   `;
@@ -4389,11 +4398,13 @@ function renderItemRow(item, idx, isCons, canDelete=true){
           </button>
         </div>
       </td>
-      ${(canDelete && !isLocked) ? `<td class="cell-del">
-        <button class="btn-icon danger" onclick="removeItem('${item.id}')" title="Rimuovi voce">
+      ${canDelete ? `<td class="cell-del">
+        <button class="btn-icon danger${isLocked?' locked-action':''}"
+          onclick="${isLocked?'event.stopPropagation();_warnLocked()':`removeItem('${item.id}')`}"
+          title="${isLocked?'Documento bloccato':'Rimuovi voce'}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
-      </td>` : (canDelete ? `<td class="cell-del"></td>` : '')}
+      </td>` : ''}
     </tr>
   `;
 }
@@ -4662,7 +4673,7 @@ function _isLocked(){
 let _lockWarnTimer = null;
 function _warnLocked(){
   if(_lockWarnTimer) return;
-  showToast('🔒 Documento bloccato — premi "Sblocca" per modificare', 'warning');
+  showToast('🔒 Documento bloccato — sbloccare per modificare', 'error');
   _lockWarnTimer = setTimeout(() => { _lockWarnTimer = null; }, 2500);
 }
 
@@ -5534,9 +5545,9 @@ function renderAcconti(){
   if(!p) return;
   if(!p.acconti) p.acconti = [];
   const locked = !!p.locked;
-  // Disabilita pulsante "Aggiungi acconto" quando bloccato
+  // Blocca visivamente pulsante "Aggiungi acconto" quando locked
   const addBtn = document.getElementById('btn-add-acconto');
-  if(addBtn){ addBtn.disabled = locked; addBtn.style.opacity = locked ? '0.4' : ''; }
+  if(addBtn){ addBtn.classList.toggle('locked-action', locked); addBtn.disabled = false; }
   const cont = document.getElementById('acconti-body');
 
   // Aggiorna etichetta IVA nell'header
@@ -6132,26 +6143,15 @@ function buildFileName(p){
 
 function printPdf(){
   const p = getCurrentPrev();
-  // Chiude il modale anteprima prima di aprire il popup di stampa:
-  // l'overlay del modale (position:fixed inset:0 z-index:200) altrimenti
-  // rimane visibile e blocca tutti i click sulla pagina principale.
-  const pdfModal = document.getElementById('modal-pdf');
-  if(pdfModal && pdfModal.classList.contains('open')){
-    pdfModal.classList.remove('open');
-  }
   // Blocca il documento al momento della stampa/download effettiva
   if(p && !p.locked){ p.locked = true; saveState(); renderBuilder(); }
+  const w = window.open('', '_blank');
+  if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
   const html = buildPrintDocHtml();
   const titled = p ? html.replace(/<title>[^<]*<\/title>/, `<title>${buildFileName(p)}</title>`) : html;
-  // Usa Blob URL invece di document.write: il popup carica da un URL indipendente
-  // e non mantiene una connessione sincrona con il parent — evita il freeze del browser.
   const withPrint = titled.replace('</body>', '<script>window.onload=function(){window.focus();window.print();}<\/script></body>');
-  const blob = new Blob([withPrint], {type: 'text/html; charset=utf-8'});
-  const blobUrl = URL.createObjectURL(blob);
-  const w = window.open(blobUrl, '_blank');
-  if(!w){ URL.revokeObjectURL(blobUrl); showToast('Abilita i popup per stampare','warning'); return; }
-  // Revoca il blob URL dopo che il popup ha avuto tempo di caricarsi
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  w.document.write(withPrint);
+  w.document.close();
 }
 
 
