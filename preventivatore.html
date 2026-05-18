@@ -2812,6 +2812,7 @@ async function loadState(){
         if(!it.origin) it.origin = 'preventivo';
         if(it.qty==null && p.tipo) it.qty = 1;
         if(it.unit==='corpo') it.qty = 1; // corpo è sempre qty=1
+        if(it.showQty==null) it.showQty = true; // default: qty visibile nel PDF
       });
     });
     // Migrazione: aggiorna nomi categorie predefinite + ripristina mancanti (es. elettrico cancellato)
@@ -4167,6 +4168,7 @@ function toggleCatSubtotal(catId, val){
 function renderItemsTable(items, onlyOrigin){
   const p = getCurrentPrev();
   const isCons = p.tipo==='consuntivo';
+  const allShowQty   = items.length>0 && items.every(i=>i.showQty!==false);
   const allShowPrice = items.length>0 && items.every(i=>i.showPrice);
   const allShowTotal = items.length>0 && items.every(i=>i.showTotal);
   // mostra eseguito toggle solo per items origin='preventivo' nei consuntivi
@@ -4183,7 +4185,17 @@ function renderItemsTable(items, onlyOrigin){
             ${showEseguitoCol?`<th style="width:50px" class="center">Es.</th>`:''}
             <th>Descrizione</th>
             <th style="width:80px" class="center">Unità</th>
-            <th style="width:88px" class="center">Qtà</th>
+            <th style="width:100px" class="center">
+              <div class="th-stack">
+                <span>Qtà</span>
+                <button class="col-eye-btn${allShowQty?' eye-open':' eye-closed'}"
+                  onclick="event.stopPropagation();bulkColShow('showQty',${!allShowQty},'${catId}','${onlyOrigin||''}')"
+                  title="${allShowQty?'Nascondi dal PDF':'Mostra nel PDF'}">
+                  ${allShowQty ? EYE_OPEN_SVG : EYE_CLOSED_SVG}
+                  <span>PDF</span>
+                </button>
+              </div>
+            </th>
             <th style="width:18px" class="center op-sep"></th>
             <th style="width:172px" class="center">
               <div class="th-stack">
@@ -4253,11 +4265,18 @@ function renderItemRow(item, idx, isCons, canDelete=true){
         </select>
       </td>
       <td class="center cell-qty">
-        ${(isCons || item.unit==='corpo')
-          ? `<input class="qty-input" type="number" value="${item.unit==='corpo'?1:(item.qty??'')}" readonly
-               style="opacity:.4;cursor:not-allowed;background:var(--cream);pointer-events:none">`
-          : `<input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
-               placeholder="0" onchange="updateItem('${item.id}','qty',this.value)">`}
+        <div class="cell-with-toggle">
+          ${(isCons || item.unit==='corpo')
+            ? `<input class="qty-input" type="number" value="${item.unit==='corpo'?1:(item.qty??'')}" readonly
+                 style="opacity:.4;cursor:not-allowed;background:var(--cream);pointer-events:none">`
+            : `<input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
+                 placeholder="0" onchange="updateItem('${item.id}','qty',this.value)">`}
+          <button class="eye-btn${item.showQty!==false?' eye-open':' eye-closed'}"
+            onclick="event.stopPropagation();updateItem('${item.id}','showQty',${item.showQty===false})"
+            title="${item.showQty!==false?'Nascondi dal PDF':'Mostra nel PDF'}">
+            ${item.showQty!==false ? EYE_OPEN_SVG : EYE_CLOSED_SVG}
+          </button>
+        </div>
       </td>
       <td class="op-sep op-sep-mul" aria-hidden="true">×</td>
       <td class="center cell-price">
@@ -4320,6 +4339,7 @@ function addItem(catId, libItem){
     qty: 1,
     unit: libItem.unit || 'corpo',
     price: null,
+    showQty: true,
     showPrice: false,
     showTotal: false,
     eseguito: true,
@@ -4362,7 +4382,7 @@ function updateItem(id, field, value){
   if(!item) return;
   if(field==='qty' || field==='price'){
     item[field] = (value===''||value==null) ? null : parseFloat(value);
-  }else if(field==='showPrice' || field==='showTotal'){
+  }else if(field==='showPrice' || field==='showTotal' || field==='showQty'){
     item[field] = !!value;
     refreshCategorySection(item.cat);
   }else{
@@ -5647,7 +5667,8 @@ function closePdfPreview(){
 function renderPdfCategorySection(p, cat, items, opts){
   if(!items.length) return '';
   const isCons = p.tipo==='consuntivo';
-  // La colonna appare se almeno una voce ha il flag attivo — indipendente dal toggle globale
+  // Le colonne appaiono se almeno una voce ha il flag attivo — indipendente dal toggle globale
+  const showQtyCol   = items.some(i=>i.showQty!==false);
   const showPriceCol = !opts?.hidePrices && items.some(i=>i.showPrice);
   const showTotalCol = items.some(i=>i.showTotal);
   const showSubtotal = !opts?.hideSubtotal && p.catSubtotal && p.catSubtotal[cat.id]!==false;
@@ -5659,14 +5680,15 @@ function renderPdfCategorySection(p, cat, items, opts){
   const rows = items.map((it, idx) => {
     const tot = (it.qty||0)*(it.price||0);
     const notExec = isCons && it.eseguito===false;
+    const fmtQtyVal = (q) => (+q).toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1});
     const qtyStr = it.unit==='corpo'
       ? ''
-      : (it.qty!=null ? `${it.qty} ${it.unit}` : it.unit);
+      : (it.qty!=null ? `${fmtQtyVal(it.qty)} ${it.unit}` : it.unit);
     return `
       <tr class="${notExec?'pdf-not-eseguito':''}">
         <td style="width:24px"><span class="pdf-item-num">${numStart+idx}.</span></td>
         <td>${escHtml(it.desc)}</td>
-        <td class="center" style="width:80px">${qtyStr}</td>
+        ${showQtyCol?`<td class="center" style="width:80px">${it.showQty!==false ? qtyStr : ''}</td>`:''}
         ${showPriceCol?`<td class="right pdf-price" style="width:90px">${it.showPrice && it.price!=null ? fmtCur(it.price) : ''}</td>`:''}
         ${showTotalCol?`<td class="right pdf-price" style="width:100px;font-weight:600">${it.showTotal && tot>0 ? fmtCur(tot) : ''}</td>`:''}
       </tr>`;
@@ -5682,7 +5704,7 @@ function renderPdfCategorySection(p, cat, items, opts){
         <thead><tr>
           <th style="width:24px">#</th>
           <th>Descrizione</th>
-          <th class="center" style="width:80px">Qtà</th>
+          ${showQtyCol?`<th class="center" style="width:80px">Qtà</th>`:''}
           ${showPriceCol?`<th class="right" style="width:90px">€/un.</th>`:''}
           ${showTotalCol?`<th class="right" style="width:100px">Totale</th>`:''}
         </tr></thead>
@@ -5789,8 +5811,7 @@ function buildPdfHtml(){
   }else if(p.ivaMode==='exempt'){
     summaryHtml = `
       ${breakdownRows('')}
-      <div class="pdf-summary-row grand"><span class="lbl">${labelTot}</span><span class="val">${fmtCur(imponibile)}</span></div>
-      <div class="pdf-summary-row" style="font-size:10px;color:#aaa"><span class="lbl">Operazione esente IVA</span><span></span></div>`;
+      <div class="pdf-summary-row grand"><span class="lbl">${labelTot}</span><span class="val">${fmtCur(imponibile)}</span></div>`;
   }else{
     const iva = imponibile * ivaRate/100;
     const tot = imponibile + iva;
