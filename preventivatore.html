@@ -944,18 +944,18 @@ input,select,textarea{font-family:inherit}
 /* ─── LOCK BANNER ─── */
 .lock-banner{
   display:flex;align-items:center;gap:10px;
-  background:#fffbeb;border:1.5px solid #f59e0b;
+  background:#fff5f5;border:1.5px solid var(--danger);
   border-radius:10px;padding:11px 16px;margin-bottom:16px;
 }
-.lock-banner-icon{color:#d97706;flex-shrink:0;display:flex}
-.lock-banner-text{flex:1;font-size:13px;color:#78350f;font-weight:500}
-.lock-banner-sub{font-size:11.5px;color:#92400e;font-weight:400;margin-top:1px}
+.lock-banner-icon{color:var(--danger);flex-shrink:0;display:flex}
+.lock-banner-text{flex:1;font-size:13px;color:var(--danger);font-weight:600}
+.lock-banner-sub{font-size:11.5px;color:#b91c1c;font-weight:400;margin-top:1px}
 .lock-banner-btn{
-  background:#f59e0b;color:white;border:none;border-radius:7px;
+  background:var(--danger);color:white;border:none;border-radius:7px;
   padding:6px 14px;font-size:12.5px;font-weight:600;font-family:inherit;
   cursor:pointer;transition:var(--transition);flex-shrink:0;
 }
-.lock-banner-btn:hover{background:#d97706}
+.lock-banner-btn:hover{background:#b91c1c}
 
 .qty-input,.price-input{
   width:88px;
@@ -2417,7 +2417,7 @@ service cloud.firestore {
     <div class="acconti-card">
       <div class="acconti-header">
         <h3>Acconti Versati <span id="acconti-iva-label"></span></h3>
-        <button class="btn btn-ghost btn-sm" onclick="addAcconto()">
+        <button id="btn-add-acconto" class="btn btn-ghost btn-sm" onclick="addAcconto()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Aggiungi acconto
         </button>
@@ -4355,7 +4355,10 @@ function renderItemRow(item, idx, isCons, canDelete=true){
       </td>
       <td class="idx-cell">${idx+1}</td>
       ${isCons?`<td class="center cell-eseguito">
-        <button class="eseguito-toggle ${notExec?'no':''}" onclick="toggleEseguito('${item.id}')" title="${notExec?'Non eseguito':'Eseguito'}">
+        <button class="eseguito-toggle ${notExec?'no':''}${isLocked?' locked-toggle':''}"
+          onclick="${isLocked?'event.stopPropagation();_warnLocked()':`toggleEseguito('${item.id}')`}"
+          title="${isLocked?'Documento bloccato':(notExec?'Non eseguito':'Eseguito')}"
+          style="${isLocked?'opacity:.5;cursor:not-allowed;':''}">
           ${notExec?'✕':'✓'}
         </button>
       </td>`:''}
@@ -4528,6 +4531,7 @@ function updateItem(id, field, value){
 }
 
 function toggleEseguito(id){
+  if(_isLocked()){ _warnLocked(); return; }
   const item = getItemById(id);
   if(!item) return;
   item.eseguito = item.eseguito===false ? true : false;
@@ -5511,6 +5515,7 @@ function catDrop(e,tgtId){
 // ACCONTI
 // ═══════════════════════════════════════════════
 function addAcconto(){
+  if(_isLocked()){ _warnLocked(); return; }
   const p = getCurrentPrev();
   if(!p) return;
   if(!p.acconti) p.acconti = [];
@@ -5528,6 +5533,7 @@ function addAcconto(){
 }
 
 function removeAcconto(id){
+  if(_isLocked()){ _warnLocked(); return; }
   const p = getCurrentPrev();
   if(!p || !p.acconti) return;
   p.acconti = p.acconti.filter(a=>a.id!==id);
@@ -5537,6 +5543,7 @@ function removeAcconto(id){
 }
 
 function updateAcconto(id, field, value){
+  if(_isLocked()){ _warnLocked(); return; }
   const p = getCurrentPrev();
   if(!p || !p.acconti) return;
   const a = p.acconti.find(x=>x.id===id);
@@ -5554,6 +5561,10 @@ function renderAcconti(){
   const p = getCurrentPrev();
   if(!p) return;
   if(!p.acconti) p.acconti = [];
+  const locked = !!p.locked;
+  // Mostra/nascondi pulsante "Aggiungi acconto"
+  const addBtn = document.getElementById('btn-add-acconto');
+  if(addBtn) addBtn.style.display = locked ? 'none' : '';
   const cont = document.getElementById('acconti-body');
 
   // Aggiorna etichetta IVA nell'header
@@ -5570,10 +5581,12 @@ function renderAcconti(){
 
   if(p.acconti.length===0){
     cont.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px;">
-      Nessun acconto.<br><br>Clicca "Aggiungi acconto" per registrare un pagamento ricevuto.
+      Nessun acconto.${locked ? '' : '<br><br>Clicca "Aggiungi acconto" per registrare un pagamento ricevuto.'}
     </div>`;
     return;
   }
+  const ro = locked ? 'readonly' : '';
+  const dis = locked ? 'disabled' : '';
   cont.innerHTML = `
     <div>
       <table class="acconti-table">
@@ -5582,18 +5595,18 @@ function renderAcconti(){
             <th style="width:130px">Data</th>
             <th>N. / Riferimento</th>
             <th style="width:140px;text-align:right">Importo (netto)</th>
-            <th style="width:36px"></th>
+            ${locked ? '' : '<th style="width:36px"></th>'}
           </tr>
         </thead>
         <tbody>
           ${p.acconti.map(a => `
             <tr>
-              <td><input type="date" value="${a.data||''}" onchange="updateAcconto('${a.id}','data',this.value)"></td>
-              <td><input type="text" value="${escHtml(a.numero||'')}" onchange="updateAcconto('${a.id}','numero',this.value)" placeholder="es. Acconto 1 — fattura n.5/2025"></td>
-              <td><div class="euro-wrap"><input type="number" min="0" step="any" value="${a.importo??''}" onchange="updateAcconto('${a.id}','importo',this.value)" placeholder="0,00" class="acc-importo"></div></td>
-              <td><button class="btn-icon danger" onclick="removeAcconto('${a.id}')" title="Rimuovi">
+              <td><input type="date" value="${a.data||''}" ${ro} onchange="updateAcconto('${a.id}','data',this.value)"></td>
+              <td><input type="text" value="${escHtml(a.numero||'')}" ${ro} onchange="updateAcconto('${a.id}','numero',this.value)" placeholder="es. Acconto 1 — fattura n.5/2025"></td>
+              <td><div class="euro-wrap"><input type="number" min="0" step="any" value="${a.importo??''}" ${ro} onchange="updateAcconto('${a.id}','importo',this.value)" placeholder="0,00" class="acc-importo"></div></td>
+              ${locked ? '' : `<td><button class="btn-icon danger" onclick="removeAcconto('${a.id}')" title="Rimuovi">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-              </button></td>
+              </button></td>`}
             </tr>
           `).join('')}
         </tbody>
@@ -6155,9 +6168,12 @@ function printPdf(){
   const html = buildPrintDocHtml();
   // Replace the auto-generated title with the full filename (includes sito)
   const titled = p ? html.replace(/<title>[^<]*<\/title>/, `<title>${buildFileName(p)}</title>`) : html;
-  w.document.write(titled);
+  // Inietta lo script di stampa nell'HTML del popup invece di chiamare w.print()
+  // dal parent — altrimenti il browser blocca la finestra principale finché
+  // il dialogo di stampa non viene chiuso.
+  const withPrint = titled.replace('</body>', '<script>window.onload=function(){window.focus();window.print();}<\/script></body>');
+  w.document.write(withPrint);
   w.document.close();
-  setTimeout(()=>{ w.focus(); w.print(); }, 600);
 }
 
 
