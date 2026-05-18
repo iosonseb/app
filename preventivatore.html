@@ -939,19 +939,23 @@ input,select,textarea{font-family:inherit}
   flex-shrink:0;
 }
 .lock-btn:hover{color:var(--accent);border-color:var(--accent)}
-.lock-btn.locked{color:var(--danger);border-color:var(--danger);background:#fff5f5}
-.lock-btn.locked:hover{color:var(--danger);border-color:var(--danger)}
-/* Builder locked: disabilita interazioni di editing */
-.builder-content.doc-locked .qty-input,
-.builder-content.doc-locked .price-input,
-.builder-content.doc-locked .unit-select,
-.builder-content.doc-locked .drag-handle-cell{pointer-events:none;opacity:.35;cursor:not-allowed}
-.builder-content.doc-locked .cell-del button{pointer-events:none;opacity:.2}
-.builder-content.doc-locked .desc-cell{pointer-events:none;cursor:default}
-.builder-content.doc-locked .desc-cell .edit-pencil{display:none}
-.builder-content.doc-locked .cat-add-bar,.builder-content.doc-locked .add-cat-row{display:none!important}
-.builder-content.doc-locked .eseguito-toggle{pointer-events:auto;opacity:1} /* rimane attivo */
-.builder-content.doc-locked .eye-btn,.builder-content.doc-locked .col-eye-btn{pointer-events:auto;opacity:1}
+.lock-btn.locked{color:#b45309;border-color:#f59e0b;background:#fffbeb}
+.lock-btn.locked:hover{color:#92400e;border-color:#d97706}
+/* ─── LOCK BANNER ─── */
+.lock-banner{
+  display:flex;align-items:center;gap:10px;
+  background:#fffbeb;border:1.5px solid #f59e0b;
+  border-radius:10px;padding:11px 16px;margin-bottom:16px;
+}
+.lock-banner-icon{color:#d97706;flex-shrink:0;display:flex}
+.lock-banner-text{flex:1;font-size:13px;color:#78350f;font-weight:500}
+.lock-banner-sub{font-size:11.5px;color:#92400e;font-weight:400;margin-top:1px}
+.lock-banner-btn{
+  background:#f59e0b;color:white;border:none;border-radius:7px;
+  padding:6px 14px;font-size:12.5px;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:var(--transition);flex-shrink:0;
+}
+.lock-banner-btn:hover{background:#d97706}
 
 .qty-input,.price-input{
   width:88px;
@@ -966,6 +970,16 @@ input,select,textarea{font-family:inherit}
 }
 .qty-input:focus,.price-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,131,59,.12)}
 .qty-input{width:74px}
+/* Nasconde i pulsanti spinner solo sui price-input, mantenendo le frecce da tastiera */
+.price-input::-webkit-outer-spin-button,
+.price-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.price-input{-moz-appearance:textfield;appearance:textfield}
+/* ── Altezza uniforme toolbar builder ── */
+.builder-actions .btn-sm,
+.builder-actions .show-toggle,
+.builder-actions .lock-btn{height:32px;box-sizing:border-box;padding-top:0;padding-bottom:0}
+.builder-actions .iva-control{height:32px;box-sizing:border-box}
+.builder-actions .iva-select{height:32px;box-sizing:border-box;padding-top:0;padding-bottom:0}
 
 .unit-select{
   border:1.5px solid var(--border);
@@ -2337,13 +2351,10 @@ service cloud.firestore {
       </div>
       <div class="builder-actions">
         <div id="builder-link-btns" style="display:none"></div>
+        <!-- Ordine: Categorie · Mostra prezzi · IVA · Crea consuntivo · Blocca · Anteprima PDF -->
         <button id="btn-categorie" class="btn btn-ghost btn-sm" onclick="openCatManager()" title="Gestisci categorie">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           Categorie
-        </button>
-        <button id="btn-lock" class="lock-btn" onclick="toggleLock()" title="Blocca/sblocca modifiche">
-          <svg id="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span id="lock-label">Blocca</span>
         </button>
         <button class="show-toggle" onclick="togglePdfPrices()" title="Mostra/nascondi prezzi nel PDF e su tutte le voci">
           <span id="pdf-prices-icon"></span>
@@ -2359,6 +2370,10 @@ service cloud.firestore {
           </select>
         </div>
         <div id="builder-crea-cons-btn"></div>
+        <button id="btn-lock" class="lock-btn" onclick="toggleLock()" title="Blocca/sblocca modifiche">
+          <svg id="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span id="lock-label">Blocca</span>
+        </button>
         <button class="btn btn-primary btn-sm" onclick="openPdfPreview()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Anteprima PDF
@@ -2367,6 +2382,18 @@ service cloud.firestore {
     </div>
 
     <div id="builder-content" class="builder-content">
+
+    <div id="lock-banner" class="lock-banner" style="display:none">
+      <div class="lock-banner-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0"/></svg>
+      </div>
+      <div>
+        <div class="lock-banner-text">Documento bloccato</div>
+        <div class="lock-banner-sub">Le modifiche sono disabilitate. Clicca Sblocca per riprendere a modificare.</div>
+      </div>
+      <button class="lock-banner-btn" onclick="toggleLock()">Sblocca</button>
+    </div>
+
     <div id="categories-container"></div>
 
     <div class="add-cat-row">
@@ -4091,8 +4118,10 @@ function renderBuilder(){
 
   // ── Punto 3: lock state ──
   if(p.locked == null) p.locked = false;
-  const builderContent = document.getElementById('builder-content');
-  if(builderContent) builderContent.classList.toggle('doc-locked', !!p.locked);
+  // Banner
+  const lockBanner = document.getElementById('lock-banner');
+  if(lockBanner) lockBanner.style.display = p.locked ? '' : 'none';
+  // Pulsante toolbar
   const lockBtn = document.getElementById('btn-lock');
   const lockLabel = document.getElementById('lock-label');
   const lockIcon = document.getElementById('lock-icon');
@@ -4305,21 +4334,23 @@ function renderItemsTable(items, onlyOrigin, numStart=1){
 }
 
 function renderItemRow(item, idx, isCons, canDelete=true){
+  const p = getCurrentPrev();
+  const isLocked = !!p?.locked;
+  const readonlyFields = isCons || isLocked; // blocca qty/price/unit sia in consuntivi che in lock
   const notExec = isCons && item.eseguito===false;
   const rawTotal = (item.qty||0) * (item.price||0);
-  const total = notExec ? rawTotal : calcItem(item); // always full price for display
+  const total = notExec ? rawTotal : calcItem(item);
+  const lockClick = isLocked ? 'onclick="event.stopPropagation();_warnLocked()"' : '';
   return `
     <tr id="row-${item.id}" class="${notExec?'not-eseguito':''}"
-        draggable="true"
+        draggable="${!isLocked}"
         ondragstart="dragStart(event,'${item.id}')"
         ondragend="dragEnd(event)"
         ondragover="dragOver(event,'${item.id}')"
         ondragleave="dragLeave(event)"
-        ondrop="drop(event,'${item.id}')"
-        ontouchstart="touchItemStart(event,'${item.id}')"
-        ontouchend="touchItemEnd(event)"
-        ontouchcancel="touchItemEnd(event)">
-      <td class="drag-handle-cell" title="Trascina per riordinare">
+        ondrop="drop(event,'${item.id}')">
+      <td class="drag-handle-cell" title="${isLocked?'Documento bloccato':'Trascina per riordinare'}"
+          style="${isLocked?'opacity:.3;cursor:not-allowed':''}" ${lockClick}>
         <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
       </td>
       <td class="idx-cell">${idx+1}</td>
@@ -4328,18 +4359,22 @@ function renderItemRow(item, idx, isCons, canDelete=true){
           ${notExec?'✕':'✓'}
         </button>
       </td>`:''}
-      <td class="desc-cell cell-desc" ${isCons?'':'onclick="editItemDesc(\''+item.id+'\')"'} id="desc-${item.id}">
+      <td class="desc-cell cell-desc"
+          ${(isCons||isLocked)?'':`onclick="editItemDesc('${item.id}')"`}
+          ${isLocked?`style="cursor:default" ${lockClick}`:''}
+          id="desc-${item.id}">
         <span class="desc-text">${escHtml(item.desc)}</span>
-        ${isCons?'':'<span class="edit-pencil">✎</span>'}
+        ${(isCons||isLocked)?'':'<span class="edit-pencil">✎</span>'}
       </td>
       <td class="center cell-unit">
-        <select class="unit-select" ${isCons?'disabled style="opacity:.5;pointer-events:none"':''} onchange="updateItem('${item.id}','unit',this.value)">
+        <select class="unit-select"
+          ${readonlyFields?'disabled style="opacity:.5;pointer-events:none"':`onchange="updateItem('${item.id}','unit',this.value)"`}>
           ${UNITS.map(u=>`<option value="${u}" ${item.unit===u?'selected':''}>${u}</option>`).join('')}
         </select>
       </td>
       <td class="center cell-qty">
         <div class="cell-with-toggle">
-          ${(isCons || item.unit==='corpo')
+          ${(readonlyFields || item.unit==='corpo')
             ? `<input class="qty-input" type="number" value="${item.unit==='corpo'?1:(item.qty??'')}" readonly
                  style="opacity:.4;cursor:not-allowed;background:var(--cream);pointer-events:none">`
             : `<input class="qty-input" type="number" min="0" step="any" value="${item.qty??''}"
@@ -4355,9 +4390,12 @@ function renderItemRow(item, idx, isCons, canDelete=true){
       <td class="center cell-price">
         <div class="cell-with-toggle">
           <div class="euro-wrap"><input class="price-input" type="number" min="0" step="any" value="${item.price??''}"
-            placeholder="0,00" ${isCons?'readonly style="opacity:.5;cursor:not-allowed;background:var(--cream);pointer-events:none"':`onchange="updateItem('${item.id}','price',this.value)"
-            style="${!item.price?'color:var(--danger);border-color:#f3d6d6;background:#fef4f4':''}"
-            oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'"`}></div>
+            placeholder="0,00" ${readonlyFields
+              ? 'readonly style="opacity:.5;cursor:not-allowed;background:var(--cream);pointer-events:none"'
+              : `onchange="updateItem('${item.id}','price',this.value)"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();priceEnterNext(this)}"
+                 style="${!item.price?'color:var(--danger);border-color:#f3d6d6;background:#fef4f4':''}"
+                 oninput="this.style.color=this.value&&+this.value>0?'':'var(--danger)';this.style.borderColor=this.value&&+this.value>0?'':'#f3d6d6';this.style.background=this.value&&+this.value>0?'':'#fef4f4'"`}></div>
           <button class="eye-btn${item.showPrice?' eye-open':' eye-closed'}"
             onclick="event.stopPropagation();updateItem('${item.id}','showPrice',${!item.showPrice})"
             title="${item.showPrice?'Nascondi dal PDF':'Mostra nel PDF'}">
@@ -4376,11 +4414,11 @@ function renderItemRow(item, idx, isCons, canDelete=true){
           </button>
         </div>
       </td>
-      ${canDelete ? `<td class="cell-del">
+      ${(canDelete && !isLocked) ? `<td class="cell-del">
         <button class="btn-icon danger" onclick="removeItem('${item.id}')" title="Rimuovi voce">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
-      </td>` : ''}
+      </td>` : (canDelete ? `<td class="cell-del"></td>` : '')}
     </tr>
   `;
 }
@@ -4402,7 +4440,7 @@ function toggleCat(suffix){
 // ITEM OPERATIONS
 // ═══════════════════════════════════════════════
 function addItem(catId, libItem){
-  if(_isLocked()) return;
+  if(_isLocked()){ _warnLocked(); return; }
   const p = getCurrentPrev();
   if(!p) return;
   const newItem = {
@@ -4439,7 +4477,7 @@ function addItem(catId, libItem){
 }
 
 function removeItem(id){
-  if(_isLocked()) return;
+  if(_isLocked()){ _warnLocked(); return; }
   const p = getCurrentPrev();
   if(!p) return;
   const item = getItemById(id);
@@ -4455,7 +4493,7 @@ function removeItem(id){
 function updateItem(id, field, value){
   // I campi "show*" sono toggle PDF: funzionano anche da bloccato
   const editFields = ['qty','price','unit'];
-  if(_isLocked() && editFields.includes(field)) return;
+  if(_isLocked() && editFields.includes(field)){ _warnLocked(); return; }
   const item = getItemById(id);
   if(!item) return;
   if(field==='qty' || field==='price'){
@@ -4499,7 +4537,7 @@ function toggleEseguito(id){
 }
 
 function editItemDesc(id){
-  if(_isLocked()) return;
+  if(_isLocked()){ _warnLocked(); return; }
   const item = getItemById(id);
   if(!item) return;
   const cell = document.getElementById('desc-'+id);
@@ -4637,12 +4675,31 @@ function toggleLock(){
   p.locked = !p.locked;
   saveState();
   renderBuilder();
-  showToast(p.locked ? 'Documento bloccato — modifiche disabilitate' : 'Documento sbloccato', p.locked ? 'warning' : 'success');
+  if(!p.locked) showToast('Documento sbloccato — puoi modificare le voci', 'success');
 }
 
 function _isLocked(){
   const p = getCurrentPrev();
-  return p && p.locked;
+  return !!(p && p.locked);
+}
+
+let _lockWarnTimer = null;
+function _warnLocked(){
+  if(_lockWarnTimer) return;
+  showToast('🔒 Documento bloccato — premi "Sblocca" per modificare', 'warning');
+  _lockWarnTimer = setTimeout(() => { _lockWarnTimer = null; }, 2500);
+}
+
+function priceEnterNext(el){
+  // Raccoglie tutti i price-input visibili e non readonly nel builder
+  const all = Array.from(document.querySelectorAll('#view-builder .price-input:not([readonly])'));
+  const idx = all.indexOf(el);
+  if(idx >= 0 && idx < all.length - 1){
+    all[idx + 1].focus();
+    all[idx + 1].select();
+  } else if(idx === all.length - 1){
+    el.blur(); // ultimo campo: deseleziona
+  }
 }
 
 function togglePdfPrices(){
