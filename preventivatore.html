@@ -6141,16 +6141,17 @@ function printPdf(){
   }
   // Blocca il documento al momento della stampa/download effettiva
   if(p && !p.locked){ p.locked = true; saveState(); renderBuilder(); }
-  const w = window.open('', '_blank');
-  if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
   const html = buildPrintDocHtml();
   const titled = p ? html.replace(/<title>[^<]*<\/title>/, `<title>${buildFileName(p)}</title>`) : html;
-  // Inietta lo script di stampa nell'HTML del popup invece di chiamare w.print()
-  // dal parent — altrimenti il browser blocca la finestra principale finché
-  // il dialogo di stampa non viene chiuso.
+  // Usa Blob URL invece di document.write: il popup carica da un URL indipendente
+  // e non mantiene una connessione sincrona con il parent — evita il freeze del browser.
   const withPrint = titled.replace('</body>', '<script>window.onload=function(){window.focus();window.print();}<\/script></body>');
-  w.document.write(withPrint);
-  w.document.close();
+  const blob = new Blob([withPrint], {type: 'text/html; charset=utf-8'});
+  const blobUrl = URL.createObjectURL(blob);
+  const w = window.open(blobUrl, '_blank');
+  if(!w){ URL.revokeObjectURL(blobUrl); showToast('Abilita i popup per stampare','warning'); return; }
+  // Revoca il blob URL dopo che il popup ha avuto tempo di caricarsi
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
 }
 
 
