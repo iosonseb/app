@@ -5821,14 +5821,15 @@ function recalcAll(){
 function openPdfPreview(){
   const p = getCurrentPrev();
   if(!p){ showToast('Nessun documento attivo','warning'); return; }
-  // Auto-lock al momento dell'anteprima PDF
-  if(!p.locked){ p.locked = true; saveState(); }
+  // NON blocchiamo qui: il lock scatta solo alla stampa/download effettiva
   document.getElementById('pdf-content').innerHTML = buildPdfHtml();
   document.getElementById('modal-pdf').classList.add('open');
 }
 
 function closePdfPreview(){
   document.getElementById('modal-pdf').classList.remove('open');
+  // Aggiorna il builder (mostra banner lock se il doc è stato bloccato durante la stampa)
+  renderBuilder();
 }
 
 function renderPdfCategorySection(p, cat, items, opts){
@@ -6146,7 +6147,8 @@ function buildFileName(p){
 
 function printPdf(){
   const p = getCurrentPrev();
-  // Auto-lock alla stampa/download
+  // Blocca il documento al momento della stampa/download effettiva
+  const wasLocked = p?.locked;
   if(p && !p.locked){ p.locked = true; saveState(); }
   const w = window.open('', '_blank');
   if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
@@ -6170,18 +6172,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Close modals with ESC
   document.addEventListener('keydown', (e)=>{
     if(e.key==='Escape'){
-      ['modal-picker','modal-cats','modal-pdf','modal-confirm'].forEach(id=>{
+      ['modal-picker','modal-cats','modal-confirm'].forEach(id=>{
         document.getElementById(id)?.classList.remove('open');
       });
+      // modal-pdf usa closePdfPreview per aggiornare anche il builder
+      if(document.getElementById('modal-pdf')?.classList.contains('open')){
+        closePdfPreview();
+      }
     }
   });
   // Close modal when clicking overlay
-  ['modal-picker','modal-cats','modal-pdf'].forEach(id=>{
+  ['modal-picker','modal-cats'].forEach(id=>{
     const el = document.getElementById(id);
     el.addEventListener('click', (e)=>{
       if(e.target===el) el.classList.remove('open');
     });
   });
+  // modal-pdf: usa closePdfPreview per aggiornare anche il builder
+  const pdfOverlay = document.getElementById('modal-pdf');
+  if(pdfOverlay){
+    pdfOverlay.addEventListener('click', (e)=>{
+      if(e.target===pdfOverlay) closePdfPreview();
+    });
+  }
 });
 </script>
 
