@@ -121,6 +121,7 @@
       if(!auth) return;
       try{
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
         await signInWithPopup(auth, provider);
       }catch(e){
         if(e.code !== "auth/popup-closed-by-user"){
@@ -3100,9 +3101,6 @@ function getLastNumbers(year, count=5, excludeId=null){
 }
 
 function newPreventivo(tipo='preventivo', sourceId=null){
-  // Auto-lock documento corrente prima di aprirne uno nuovo
-  const cur = getCurrentPrev();
-  if(cur && !cur.locked){ cur.locked = true; }
   const today = new Date().toISOString().split('T')[0];
   const year = getYearFromDate(today);
   // Per consuntivo: stesso numero del preventivo origine
@@ -3176,9 +3174,6 @@ function formatDocNumber(p){
 }
 
 function openPreventivo(id){
-  // Auto-lock documento corrente prima di cambiare
-  const cur = getCurrentPrev();
-  if(cur && cur.id !== id && !cur.locked){ cur.locked = true; }
   state.currentId = id;
   state.lastOpenedId = id;
   saveState();
@@ -6190,8 +6185,6 @@ function buildFileName(p){
 
 function printPdf(){
   const p = getCurrentPrev();
-  // Blocca il documento al momento della stampa/download effettiva
-  if(p && !p.locked){ p.locked = true; saveState(); renderBuilder(); }
   const w = window.open('', '_blank');
   if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
   const html = buildPrintDocHtml();
