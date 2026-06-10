@@ -1655,7 +1655,8 @@ input[readonly].locked-input,input[readonly].locked-input:hover{cursor:not-allow
 
 /* ─── PDF PREVIEW MODAL ─── */
 #modal-pdf .modal-box{max-width:920px;height:calc(100vh - 48px)}
-#modal-pdf .modal-body{background:#3d3d54;padding:32px}
+#modal-pdf .modal-body{background:#3d3d54;padding:32px;overflow:auto}
+#pdf-content .pdf-doc{width:760px;max-width:760px;margin:0 auto}
 .pdf-doc{
   background:white;
   width:100%;max-width:760px;
@@ -2103,13 +2104,8 @@ input[readonly].locked-input,input[readonly].locked-input:hover{cursor:not-allow
   .modal-footer .btn{flex:1;justify-content:center}
   #modal-pdf .modal-body{padding:10px}
 
-  /* ── PDF preview ── */
-  .pdf-doc{padding:20px 16px}
-  .pdf-header{grid-template-columns:1fr;text-align:left}
-  .pdf-client-block{text-align:left;margin-top:10px}
-  .pdf-footer{grid-template-columns:1fr}
-  .pdf-sign{text-align:left}
-  .pdf-sign-line{margin-left:0}
+  /* ── PDF preview: layout desktop anche su mobile (zoom adattivo via JS) ── */
+  #modal-pdf .modal-body{overflow:auto;-webkit-overflow-scrolling:touch}
 
   /* ── Picker ── */
   .picker-cat-tabs{padding:8px 12px}
@@ -2827,6 +2823,7 @@ service cloud.firestore {
     <div class="modal-header">
       <h2>Anteprima Documento</h2>
       <div class="modal-header-actions">
+        <button class="btn btn-ghost btn-sm" id="pdf-zoom-btn" onclick="togglePdfZoom()" title="Adatta alla larghezza / dimensione reale">🔍 <span id="pdf-zoom-label">100%</span></button>
         <button class="btn btn-primary btn-sm" onclick="printPdf()" title="Apre la finestra di stampa — scegli 'Salva come PDF' per scaricare">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Stampa /
@@ -6460,6 +6457,31 @@ function checksGo(i){
 // ═══════════════════════════════════════════════
 // PDF GENERATION
 // ═══════════════════════════════════════════════
+// ── Zoom anteprima PDF: documento desktop adattato alla larghezza disponibile ──
+let _pdfZoomFit = true;
+
+function togglePdfZoom(){
+  _pdfZoomFit = !_pdfZoomFit;
+  _fitPdfPreview();
+}
+
+function _fitPdfPreview(){
+  const doc  = document.querySelector('#pdf-content .pdf-doc');
+  const body = document.querySelector('#modal-pdf .modal-body');
+  const lbl  = document.getElementById('pdf-zoom-label');
+  if(!doc || !body) return;
+  if(_pdfZoomFit){
+    const avail = body.clientWidth - 24;
+    if(avail <= 0) return;
+    const s = Math.min(1, avail / (doc.offsetWidth || 760));
+    doc.style.zoom = s < 0.999 ? String(s) : '';
+    if(lbl) lbl.textContent = s < 0.999 ? Math.round(s*100)+'%' : '100%';
+  } else {
+    doc.style.zoom = '';
+    if(lbl) lbl.textContent = '100%';
+  }
+}
+
 function openPdfPreview(){
   const p = getCurrentPrev();
   if(!p){ showToast('Nessun documento attivo','warning'); return; }
@@ -6473,6 +6495,8 @@ function openPdfPreview(){
   }
   document.getElementById('pdf-content').innerHTML = buildPdfHtml();
   document.getElementById('modal-pdf').classList.add('open');
+  _pdfZoomFit = true;
+  requestAnimationFrame(_fitPdfPreview);
 }
 
 function closePdfPreview(){
@@ -6760,8 +6784,8 @@ function buildPrintDocHtml(){
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>${styles}
-      body{background:white;padding:0;margin:0}
-      .pdf-doc{box-shadow:none;margin:0 auto;padding:32px 40px;max-width:780px}
+      body{background:white;padding:0;margin:0;overflow-x:auto}
+      .pdf-doc{box-shadow:none;margin:0 auto;padding:32px 40px;width:780px;max-width:780px;box-sizing:border-box}
       /* FIX: forza header sempre 2 colonne in stampa anche su piccoli viewport */
       .pdf-header{grid-template-columns:1.2fr 1fr !important;text-align:left !important}
       .pdf-client-block{text-align:right !important;margin-top:0 !important}
@@ -6786,7 +6810,7 @@ function buildPrintDocHtml(){
       @media print{
         body{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding-bottom:0 !important}
         .print-toolbar{display:none !important}
-        .pdf-doc{padding:0;max-width:100%;width:100%}
+        .pdf-doc{padding:0;max-width:100%;width:100%;zoom:normal !important}
         .pdf-category,.pdf-eliminati,.pdf-extra-block,.pdf-acconti{page-break-inside:avoid}
         .pdf-logo{max-height:80px;max-width:224px;image-rendering:auto;-webkit-print-color-adjust:exact}
       }
@@ -6820,7 +6844,7 @@ function printPdf(){
   if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
   const html = buildPrintDocHtml();
   const titled = p ? html.replace(/<title>[^<]*<\/title>/, `<title>${buildFileName(p)}</title>`) : html;
-  const withPrint = titled.replace('</body>', '<script>window.onload=function(){window.focus();window.print();};window.onbeforeprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="none";};window.onafterprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="flex";};<\/script></body>');
+  const withPrint = titled.replace('</body>', '<script>function fitDoc(){var d=document.querySelector(".pdf-doc");if(!d)return;var w=window.innerWidth-12;var s=Math.min(1,w/(d.offsetWidth||780));d.style.zoom=s<0.999?s:"";}window.onload=function(){fitDoc();window.focus();window.print();};window.onresize=fitDoc;window.onbeforeprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="none";var d=document.querySelector(".pdf-doc");if(d)d.style.zoom="";};window.onafterprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="flex";fitDoc();};<\/script></body>');
   w.document.write(withPrint);
   w.document.close();
 }
@@ -6831,6 +6855,9 @@ function printPdf(){
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
   await loadState();
+  window.addEventListener('resize', ()=>{
+    if(document.getElementById('modal-pdf')?.classList.contains('open')) _fitPdfPreview();
+  });
   // Today date for next preventivo creation
   enableTabs();
   switchView('list');
