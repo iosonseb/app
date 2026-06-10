@@ -6769,7 +6769,8 @@ function buildPrintDocHtml(){
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>${styles}
       body{background:white;padding:0;margin:0;overflow-x:auto}
-      .pdf-doc{box-shadow:none;margin:0 auto;padding:32px 40px;width:780px;max-width:780px;box-sizing:border-box}
+      #fitwrap{width:780px;margin:0 auto;transform-origin:top left}
+      .pdf-doc{box-shadow:none;margin:0 auto;padding:32px 40px;width:780px;min-width:780px;max-width:780px;box-sizing:border-box}
       /* FIX: forza header sempre 2 colonne in stampa anche su piccoli viewport */
       .pdf-header{grid-template-columns:1.2fr 1fr !important;text-align:left !important}
       .pdf-client-block{text-align:right !important;margin-top:0 !important}
@@ -6794,12 +6795,13 @@ function buildPrintDocHtml(){
       @media print{
         body{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding-bottom:0 !important}
         .print-toolbar{display:none !important}
-        .pdf-doc{padding:0;max-width:100%;width:100%;zoom:normal !important}
+        #fitwrap{transform:none !important;width:auto !important;height:auto !important;margin:0 !important}
+        .pdf-doc{padding:0;max-width:100%;width:100%;min-width:0;zoom:normal !important}
         .pdf-category,.pdf-eliminati,.pdf-extra-block,.pdf-acconti{page-break-inside:avoid}
         .pdf-logo{max-height:80px;max-width:224px;image-rendering:auto;-webkit-print-color-adjust:exact}
       }
     </style>
-    </head><body>${content}
+    </head><body><div id="fitwrap">${content}</div>
     <div class="print-toolbar">
       <button class="pt-back" onclick="window.close();setTimeout(function(){if(!window.closed){try{history.back()}catch(e){}}},250)">← Torna indietro</button>
       <button class="pt-print" onclick="window.print()">🖨 Stampa / Salva PDF</button>
@@ -6828,7 +6830,7 @@ function printPdf(){
   if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
   const html = buildPrintDocHtml();
   const titled = p ? html.replace(/<title>[^<]*<\/title>/, `<title>${buildFileName(p)}</title>`) : html;
-  const withPrint = titled.replace('</body>', '<script>function fitDoc(){var d=document.querySelector(".pdf-doc");if(!d)return;var w=window.innerWidth-12;var s=Math.min(1,w/(d.offsetWidth||780));d.style.zoom=s<0.999?s:"";}window.onload=function(){fitDoc();window.focus();};window.onresize=fitDoc;window.onbeforeprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="none";var d=document.querySelector(".pdf-doc");if(d)d.style.zoom="";};window.onafterprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="flex";fitDoc();};<\/script></body>');
+  const withPrint = titled.replace('</body>', '<script>function fitDoc(){var wrap=document.getElementById("fitwrap");var d=document.querySelector(".pdf-doc");if(!wrap||!d)return;var s=Math.min(1,window.innerWidth/780);if(s<0.999){wrap.style.transform="scale("+s+")";wrap.style.margin="0";wrap.style.height=(d.offsetHeight*s)+"px";document.body.style.overflowX="hidden";}else{wrap.style.transform="";wrap.style.margin="0 auto";wrap.style.height="";document.body.style.overflowX="";}}window.onload=function(){fitDoc();window.focus();};window.onresize=fitDoc;window.onbeforeprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="none";var w2=document.getElementById("fitwrap");if(w2){w2.style.transform="";w2.style.height="";w2.style.margin="0 auto";}};window.onafterprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="flex";fitDoc();};<\/script></body>');
   w.document.write(withPrint);
   w.document.close();
 }
