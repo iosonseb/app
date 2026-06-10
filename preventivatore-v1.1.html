@@ -6756,7 +6756,7 @@ function buildPrintDocHtml(){
   const styles = document.querySelector('style').innerHTML;
   const p = getCurrentPrev();
   const title = p ? `${p.tipo==='consuntivo'?'Consuntivo':'Preventivo'} ${formatDocNumber(p)}${p.client?.nome?' - '+p.client.nome:''}` : 'Documento';
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${escHtml(title)}</title>
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escHtml(title)}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>${styles}
@@ -6768,15 +6768,35 @@ function buildPrintDocHtml(){
       .pdf-footer{grid-template-columns:1fr 1fr !important}
       .pdf-sign{text-align:right !important}
       .pdf-sign-line{margin-left:auto !important}
+      .print-toolbar{
+        position:fixed;left:0;right:0;bottom:0;z-index:500;
+        display:flex;gap:10px;justify-content:center;
+        padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+        background:rgba(18,23,32,.92);
+        -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+      }
+      .print-toolbar button{
+        font-family:'Inter',sans-serif;font-size:14px;font-weight:600;
+        padding:12px 20px;border-radius:10px;border:none;cursor:pointer;min-height:46px;
+      }
+      .print-toolbar .pt-back{background:rgba(255,255,255,.16);color:white}
+      .print-toolbar .pt-print{background:#e07b1f;color:white}
+      @media screen{body{padding-bottom:104px !important}}
       @page{size:A4;margin:14mm}
       @media print{
-        body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+        body{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding-bottom:0 !important}
+        .print-toolbar{display:none !important}
         .pdf-doc{padding:0;max-width:100%;width:100%}
         .pdf-category,.pdf-eliminati,.pdf-extra-block,.pdf-acconti{page-break-inside:avoid}
         .pdf-logo{max-height:80px;max-width:224px;image-rendering:auto;-webkit-print-color-adjust:exact}
       }
     </style>
-    </head><body>${content}</body></html>`;
+    </head><body>${content}
+    <div class="print-toolbar">
+      <button class="pt-back" onclick="window.close();setTimeout(function(){if(!window.closed){try{history.back()}catch(e){}}},250)">← Torna indietro</button>
+      <button class="pt-print" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+    </div>
+    </body></html>`;
 }
 
 function buildFileName(p){
@@ -6800,7 +6820,7 @@ function printPdf(){
   if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
   const html = buildPrintDocHtml();
   const titled = p ? html.replace(/<title>[^<]*<\/title>/, `<title>${buildFileName(p)}</title>`) : html;
-  const withPrint = titled.replace('</body>', '<script>window.onload=function(){window.focus();window.print();}<\/script></body>');
+  const withPrint = titled.replace('</body>', '<script>window.onload=function(){window.focus();window.print();};window.onbeforeprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="none";};window.onafterprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="flex";};<\/script></body>');
   w.document.write(withPrint);
   w.document.close();
 }
