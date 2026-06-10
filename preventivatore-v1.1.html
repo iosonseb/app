@@ -1886,17 +1886,22 @@ input[readonly].locked-input,input[readonly].locked-input:hover{cursor:not-allow
 
 /* ─── NOTIFICATION ─── */
 .notif{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
   background:var(--inverse);color:white;
   padding:11px 22px;border-radius:8px;
   font-size:13px;font-weight:500;
   z-index:999;
-  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:transform .3s cubic-bezier(.4,0,.2,1), opacity .3s ease, visibility 0s linear .3s;
   box-shadow:var(--shadow-lg);
   display:flex;align-items:center;gap:8px;
   max-width:90vw;
 }
-.notif.show{transform:translateX(-50%) translateY(0)}
+.notif.show{
+  transform:translateX(-50%) translateY(0);
+  opacity:1;visibility:visible;
+  transition:transform .3s cubic-bezier(.4,0,.2,1), opacity .3s ease, visibility 0s;
+}
 .notif.success{background:var(--success)}
 .notif.error{background:var(--danger)}
 .notif.warning{background:var(--accent)}
@@ -3810,6 +3815,8 @@ function setCompanyField(k, v){
   const p = getCurrentPrev();
   if(!p) return;
   p.company[k] = v;
+  const linked = _getLinkedDoc(p);
+  if(linked) linked.company[k] = v;
   saveState();
 }
 
@@ -3817,7 +3824,23 @@ function setClientField(k, v){
   const p = getCurrentPrev();
   if(!p) return;
   p.client[k] = v;
+  // Sincronizza i dati anagrafici (nome, indirizzo, email, telefono) col
+  // documento collegato. Titolo e note restano specifici per documento.
+  if(['nome','sito','email','phone'].includes(k)){
+    const linked = _getLinkedDoc(p);
+    if(linked) linked.client[k] = v;
+  }
   saveState();
+}
+
+// Ritorna il documento collegato (consuntivo del preventivo o viceversa)
+function _getLinkedDoc(p){
+  if(!p) return null;
+  if(p.tipo==='preventivo' && p.linkedConsuntivoId)
+    return state.preventivi.find(x=>x.id===p.linkedConsuntivoId) || null;
+  if(p.tipo==='consuntivo' && p.sourceId)
+    return state.preventivi.find(x=>x.id===p.sourceId) || null;
+  return null;
 }
 
 function saveCompanyDefaults(){
