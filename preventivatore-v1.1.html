@@ -2821,9 +2821,8 @@ service cloud.firestore {
 <div class="modal-overlay" id="modal-pdf">
   <div class="modal-box lg">
     <div class="modal-header">
-      <h2>Anteprima Documento</h2>
+      <h2>Anteprima PDF</h2>
       <div class="modal-header-actions">
-        <button class="btn btn-ghost btn-sm" id="pdf-zoom-btn" onclick="togglePdfZoom()" title="Adatta alla larghezza / dimensione reale">🔍 <span id="pdf-zoom-label">100%</span></button>
         <button class="btn btn-primary btn-sm" onclick="printPdf()" title="Apre la finestra di stampa — scegli 'Salva come PDF' per scaricare">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Stampa /
@@ -6457,29 +6456,15 @@ function checksGo(i){
 // ═══════════════════════════════════════════════
 // PDF GENERATION
 // ═══════════════════════════════════════════════
-// ── Zoom anteprima PDF: documento desktop adattato alla larghezza disponibile ──
-let _pdfZoomFit = true;
-
-function togglePdfZoom(){
-  _pdfZoomFit = !_pdfZoomFit;
-  _fitPdfPreview();
-}
-
+// ── Zoom anteprima PDF: documento desktop sempre adattato alla larghezza disponibile ──
 function _fitPdfPreview(){
   const doc  = document.querySelector('#pdf-content .pdf-doc');
   const body = document.querySelector('#modal-pdf .modal-body');
-  const lbl  = document.getElementById('pdf-zoom-label');
   if(!doc || !body) return;
-  if(_pdfZoomFit){
-    const avail = body.clientWidth - 24;
-    if(avail <= 0) return;
-    const s = Math.min(1, avail / (doc.offsetWidth || 760));
-    doc.style.zoom = s < 0.999 ? String(s) : '';
-    if(lbl) lbl.textContent = s < 0.999 ? Math.round(s*100)+'%' : '100%';
-  } else {
-    doc.style.zoom = '';
-    if(lbl) lbl.textContent = '100%';
-  }
+  const avail = body.clientWidth - 24;
+  if(avail <= 0) return;
+  const s = Math.min(1, avail / (doc.offsetWidth || 760));
+  doc.style.zoom = s < 0.999 ? String(s) : '';
 }
 
 function openPdfPreview(){
@@ -6495,7 +6480,6 @@ function openPdfPreview(){
   }
   document.getElementById('pdf-content').innerHTML = buildPdfHtml();
   document.getElementById('modal-pdf').classList.add('open');
-  _pdfZoomFit = true;
   requestAnimationFrame(_fitPdfPreview);
 }
 
@@ -6844,7 +6828,7 @@ function printPdf(){
   if(!w){ showToast('Abilita i popup per stampare','warning'); return; }
   const html = buildPrintDocHtml();
   const titled = p ? html.replace(/<title>[^<]*<\/title>/, `<title>${buildFileName(p)}</title>`) : html;
-  const withPrint = titled.replace('</body>', '<script>function fitDoc(){var d=document.querySelector(".pdf-doc");if(!d)return;var w=window.innerWidth-12;var s=Math.min(1,w/(d.offsetWidth||780));d.style.zoom=s<0.999?s:"";}window.onload=function(){fitDoc();window.focus();window.print();};window.onresize=fitDoc;window.onbeforeprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="none";var d=document.querySelector(".pdf-doc");if(d)d.style.zoom="";};window.onafterprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="flex";fitDoc();};<\/script></body>');
+  const withPrint = titled.replace('</body>', '<script>function fitDoc(){var d=document.querySelector(".pdf-doc");if(!d)return;var w=window.innerWidth-12;var s=Math.min(1,w/(d.offsetWidth||780));d.style.zoom=s<0.999?s:"";}window.onload=function(){fitDoc();window.focus();};window.onresize=fitDoc;window.onbeforeprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="none";var d=document.querySelector(".pdf-doc");if(d)d.style.zoom="";};window.onafterprint=function(){var t=document.querySelector(".print-toolbar");if(t)t.style.display="flex";fitDoc();};<\/script></body>');
   w.document.write(withPrint);
   w.document.close();
 }
