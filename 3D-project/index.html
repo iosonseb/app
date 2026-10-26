@@ -52,6 +52,9 @@ button,input{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 #app{display:grid;grid-template-columns:minmax(0,1fr) 380px;height:100%}
+#app.nopanel{grid-template-columns:1fr!important;grid-template-rows:1fr!important}
+#app.nopanel #panel{display:none}
+.panelbtn{margin-left:auto}
 #stage{position:relative;overflow:hidden;min-height:0;background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-bot) 78%)}
 #c{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
 #c.picking{cursor:pointer}
@@ -104,12 +107,15 @@ button,input{font:inherit;color:inherit}
 .varsec .vlist{max-height:330px;overflow-y:auto}
 .navspeed{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--hud-line);background:var(--hud);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;font:500 12px/1 var(--font-ui);color:var(--ink);white-space:nowrap}
 .navspeed[hidden]{display:none}
-.navpad{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,52px);gap:8px;touch-action:none;user-select:none;-webkit-user-select:none}
+.navpad{position:absolute;right:16px;bottom:84px;display:flex;flex-direction:column;gap:10px;touch-action:none;user-select:none;-webkit-user-select:none}
 .navpad[hidden]{display:none}
-.navpad button{border:1px solid var(--hud-line);background:var(--hud);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:12px;color:var(--ink);font:600 18px/1 var(--font-ui);touch-action:none}
+.navpad button{width:76px;height:64px;border:1px solid var(--hud-line);background:var(--hud);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:16px;color:var(--ink);font:600 14px/1 var(--font-ui);touch-action:none}
 .navpad button.on{border-color:var(--accent);color:var(--accent)}
-.navpad.walk .flyonly{visibility:hidden}
-#stage.touchnav .navspeed{bottom:136px}
+.navpad.walk .flyonly{display:none}
+.joy{position:absolute;left:24px;bottom:24px;width:132px;height:132px;border-radius:50%;background:var(--hud);border:1px solid var(--hud-line);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);touch-action:none;user-select:none;-webkit-user-select:none}
+.joy[hidden]{display:none}
+.joy-knob{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:var(--accent);opacity:.85;box-shadow:var(--shadow);pointer-events:none}
+#stage.touchnav .navspeed{bottom:auto;top:62px}
 #stage.touchnav .titleblock{display:none}
 .navspeed input{width:120px;accent-color:var(--accent)}
 .navspeed output{font-variant-numeric:tabular-nums;min-width:62px;text-align:right;color:var(--muted)}
@@ -276,18 +282,16 @@ h2::after{content:"";flex:1;height:1px;background:var(--line)}
       </div>
       <button class="vbtn navbtn" id="bWalk" type="button" aria-pressed="false" title="Doppio Spazio per volare">Cammina</button>
       <button class="vbtn navbtn" id="bFly" type="button" aria-pressed="false">Vola</button>
+      <button class="vbtn panelbtn" id="bPanel" type="button" aria-pressed="false" aria-controls="panel" title="Nascondi o mostra il menu (tasto M)">Nascondi menu</button>
     </div>
     <div class="vchips" id="vchips" role="group" aria-label="Varianti salvate" hidden></div>
     <label class="navspeed" id="navSpeed" hidden><span>Velocità</span>
       <input type="range" id="navSpeedR" min="0.3" max="4" step="0.1" value="1" aria-label="Velocità di movimento">
       <output id="navSpeedO">5,4 km/h</output></label>
+    <div class="joy" id="joy" hidden aria-label="Cursore di movimento"><span class="joy-knob"></span></div>
     <div class="navpad" id="navPad" hidden>
-      <button type="button" data-k="down" aria-label="Scendi" class="flyonly">⤓</button>
-      <button type="button" data-k="fwd" aria-label="Avanti (doppio tocco: corri)">▲</button>
-      <button type="button" data-k="up" aria-label="Salta o sali (doppio tocco: vola o atterra)">⤒</button>
-      <button type="button" data-k="left" aria-label="A sinistra">◀</button>
-      <button type="button" data-k="back" aria-label="Indietro">▼</button>
-      <button type="button" data-k="right" aria-label="A destra">▶</button>
+      <button type="button" data-k="up" id="padUp" aria-label="Salta o sali (doppio tocco: vola o atterra)">Salta</button>
+      <button type="button" data-k="down" class="flyonly" aria-label="Scendi">Scendi</button>
     </div>
     <div class="titleblock">
       <span class="tb-sub" id="tbSub">Vista dalla strada</span>
@@ -1929,6 +1933,19 @@ function setView(id, instant){
 }
 document.querySelectorAll('.vbtn[data-view]').forEach(b=>b.addEventListener('click', ()=>setView(b.dataset.view)));
 
+function setPanel(hidden){
+  document.getElementById('app').classList.toggle('nopanel', hidden);
+  $('#bPanel').textContent = hidden ? 'Mostra menu' : 'Nascondi menu';
+  $('#bPanel').setAttribute('aria-pressed', String(hidden));
+  store.set('casa3d.nopanel', hidden); needs = true;
+}
+$('#bPanel').addEventListener('click', ()=>setPanel(!document.getElementById('app').classList.contains('nopanel')));
+window.addEventListener('keydown', e=>{
+  if(e.code !== 'KeyM' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target; if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  setPanel(!document.getElementById('app').classList.contains('nopanel'));
+});
+
 function closeViewMenu(){ $('#viewList').hidden = true; $('#viewToggle').setAttribute('aria-expanded','false'); }
 $('#viewToggle').addEventListener('click', e=>{
   e.stopPropagation();
@@ -1995,7 +2012,7 @@ function paintNavMode(){
   $('#bWalk').setAttribute('aria-pressed', String(walk)); $('#bFly').setAttribute('aria-pressed', String(!walk));
   $('#tbName').textContent = walk ? 'A piedi' : 'In volo';
   $('#viewName').textContent = walk ? 'A piedi' : 'In volo';
-  $('#navPad').classList.toggle('walk', walk);
+  $('#navPad').classList.toggle('walk', walk); $('#padUp').textContent = walk ? 'Salta' : 'Sali';
   $('#hint').textContent = (locked() ? '' : freeLook ? 'Muovi il mouse sulla scena per guardarti intorno · ' : 'Clic sulla scena per muovere la visuale col mouse · ')
     + (walk ? 'WASD muovi · Spazio salta · doppio Spazio vola · doppio W corri · Maiusc piano · rotella velocità · Esc esci'
             : 'WASD muovi · Spazio sali · Maiusc scendi · doppio Spazio atterra · doppio W veloce · rotella velocità · Esc esci');
@@ -2025,7 +2042,7 @@ function startNav(mode){
   $('#tbSub').textContent = 'Navigazione libera';
   $('#scalebar').hidden = true; $('#gateFab').hidden = false;
   $('#navSpeed').hidden = false;
-  const tp = touchOnly(); $('#navPad').hidden = !tp; stage.classList.toggle('touchnav', tp);
+  const tp = touchOnly(); $('#navPad').hidden = !tp; $('#joy').hidden = !tp; stage.classList.toggle('touchnav', tp);
   stage.classList.add('navigating');
   paintNavMode(); applyNavCamera(); lockMouse();
 }
@@ -2033,7 +2050,7 @@ function stopNav(){
   nav = null; Object.keys(navKeys).forEach(k=>navKeys[k]=false); Object.keys(navPad).forEach(k=>navPad[k]=false);
   if(locked()) document.exitPointerLock();
   persp.fov = 35; persp.updateProjectionMatrix();
-  $('#navSpeed').hidden = true; $('#navPad').hidden = true; stage.classList.remove('navigating', 'touchnav');
+  $('#navSpeed').hidden = true; $('#navPad').hidden = true; $('#joy').hidden = true; resetJoy(); stage.classList.remove('navigating', 'touchnav');
   $('#bWalk').setAttribute('aria-pressed','false'); $('#bFly').setAttribute('aria-pressed','false');
 }
 function applyNavCamera(){
@@ -2062,10 +2079,11 @@ function tickNav(dt){
   if(!nav || !dt) return;
   const K = navKeys, P = navPad, shift = K.ShiftLeft || K.ShiftRight;
   let f = 0, s = 0, turn = 0;
-  if(K.KeyW || K.ArrowUp || P.fwd) f += 1;
-  if(K.KeyS || K.ArrowDown || P.back) f -= 1;
-  if(K.KeyD || P.right) s += 1;
-  if(K.KeyA || P.left) s -= 1;
+  if(K.KeyW || K.ArrowUp) f += 1;
+  if(K.KeyS || K.ArrowDown) f -= 1;
+  if(K.KeyD) s += 1;
+  if(K.KeyA) s -= 1;
+  if(joy.mag > 0){ f -= joy.y; s += joy.x; }
   if(K.ArrowLeft) turn += 1;
   if(K.ArrowRight) turn -= 1;
   if(f <= 0) nav.sprint = false;
@@ -2076,7 +2094,7 @@ function tickNav(dt){
   else if(walk && shift) speed *= 0.4;
   const fx = -Math.sin(nav.yaw), fz = -Math.cos(nav.yaw), rx = Math.cos(nav.yaw), rz = -Math.sin(nav.yaw);
   let mx = fx*f + rx*s, mz = fz*f + rz*s; const ml = Math.hypot(mx, mz);
-  if(ml > 0){ mx = mx/ml*speed*dt; mz = mz/ml*speed*dt; }
+  if(ml > 0){ const k = joy.mag > 0 ? Math.min(1, joy.mag) : 1; mx = mx/ml*speed*dt*k; mz = mz/ml*speed*dt*k; }
 
   if(!walk) nav.feet = nav.p.y - EYE;
   const x = nav.p.x, z = nav.p.z;
@@ -2147,11 +2165,28 @@ window.addEventListener('keydown', e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','KeyW','KeyA','KeyS','KeyD'].includes(e.code)) e.preventDefault();
 });
 window.addEventListener('keyup', e=>{ navKeys[e.code] = false; });
+
+const joy = {x:0, y:0, mag:0, id:null};
+function resetJoy(){ joy.x = joy.y = joy.mag = 0; joy.id = null; const k = document.querySelector('.joy-knob'); if(k) k.style.transform = ''; }
+{ const el = $('#joy'), knob = el.querySelector('.joy-knob');
+  const move = e=>{
+    const r = el.getBoundingClientRect(), R = r.width/2;
+    let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R);
+    const d = Math.hypot(dx, dy), lim = R - 20;
+    if(d > lim){ dx *= lim/d; dy *= lim/d; }
+    joy.x = dx/lim; joy.y = dy/lim; joy.mag = Math.min(1, Math.hypot(joy.x, joy.y));
+    if(joy.mag < 0.12) joy.mag = 0;
+    knob.style.transform = `translate(${dx}px,${dy}px)`;
+  };
+  el.addEventListener('pointerdown', e=>{ e.preventDefault(); joy.id = e.pointerId; el.setPointerCapture(e.pointerId); move(e); });
+  el.addEventListener('pointermove', e=>{ if(e.pointerId === joy.id) move(e); });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(t=>el.addEventListener(t, e=>{ if(e.pointerId === joy.id) resetJoy(); }));
+}
 document.querySelectorAll('#navPad button').forEach(b=>{
   const k = b.dataset.k, on = v=>{ navPad[k] = v; b.classList.toggle('on', v); };
   b.addEventListener('pointerdown', e=>{
     e.preventDefault(); b.setPointerCapture(e.pointerId); on(true);
-    if(k === 'up') spacePressed(); if(k === 'fwd') forwardPressed();
+    if(k === 'up') spacePressed();
   });
   ['pointerup','pointercancel','lostpointercapture'].forEach(t=>b.addEventListener(t, ()=>on(false)));
 });
@@ -2782,6 +2817,7 @@ buildRows(); buildTints(); buildPresets(); buildRailSel();
 paintAll(); paintGlass(); paintRail();
 paintPresets(); select('muri'); openCatOf('muri');
 if(!store.get('casa3d.colors')) applyVariant(BUILTIN_VARIANTS[0], true);
+if(store.get('casa3d.nopanel')) setPanel(true);
 placeSun(); applyLight(lightMode, false); resize();
 setView(VIEWS[store.get('casa3d.view')] ? store.get('casa3d.view') : 'se', true);
 $('#loading').hidden = true;
