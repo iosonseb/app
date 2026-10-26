@@ -1903,7 +1903,7 @@ function setView(id, instant){
   const v = VIEWS[id]; if(!v) return;
   if(nav) stopNav();
   currentView = id; userMoved = false;
-  document.querySelectorAll('.vbtn').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===id)));
+  document.querySelectorAll('.vbtn[data-view]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===id)));
   $('#tbSub').textContent = v.sub; $('#tbName').textContent = v.name;
   $('#viewName').textContent = v.name; closeViewMenu();
   $('#scalebar').hidden = v.p;
@@ -2508,15 +2508,18 @@ function buildPresets(){
 function paintPresets(){ document.querySelectorAll('.preset').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.p===activePreset))); }
 
 const use = name => (window.claude && typeof window.claude.use === 'function') ? window.claude.use(name).catch(()=>null) : Promise.resolve(null);
+
+const BUILTIN_VARIANTS = [{"id":"base1","nome":"Proposta 1","predefinita":true,"colori":{"muri@E":"#D6D1CD","muri@S":"#D6D1CD","muri@W":"#989594","muri@N":"#989594","muri_ovest@S":"#D6D1CD","muri_ovest@W":"#D6D1CD","muri_ovest@N":"#D6D1CD","spalla_ovest":"#D6D1CD","logge@E":"#989594","logge@S":"#989594","logge@N":"#D6D1CD","sottotetto@E":"#D6D1CD","sottotetto@S":"#D6D1CD","sottotetto@W":"#989594","sottotetto@N":"#989594","terrazzo@W":"#989594","terrazzo@S":"#989594","cornici":"#EDECE8","frontalini@balcone_W":"#D6D1CD","frontalini@balcone_S":"#FFFFFF","frontalini@balcone_N":"#FFFFFF","frontalini@pianerottolo_W":"#989594","frontalini@pianerottolo_N":"#989594","frontalini@balconcino_W":"#989594","frontalini@balconcino_S":"#FFFFFF","frontalini@balconcino_N":"#989594","frontalini@terrazzo_W":"#FFFFFF","frontalini@terrazzo_S":"#FFFFFF","frontalini@loggia1_E":"#D6D1CD","frontalini@loggia1_N":"#989594","frontalini@loggia2_E":"#D6D1CD","soffitti":"#EDECE8","spallette":"#EDECE8","davanzali":"#747472","lattoneria":"#3A3C3F","pilastri":"#D6D1CD","zoccolo":"#8E9091","tegole":"#4B4C4F","serramenti":"#162431","vetri":"#A9C9E5","tapparelle":"#6A6C6F","ringhiere":"#2A2B2D","portoncino":"#2B2C2E","garage":"#36383A","terrazzi":"#B3AEA8","scala":"#E2E1DD","box":"#D6D1CD","box_tetto":"#55585B","cancello":"#6C655E","recinzione":"#6C655E","muretto":"#C7C7C7","gradini":"#9E9E9E","vialetto":"#FFFFFF","prato":"#8FA46E","fiori":"#B23A48","pavimentazione":"#CBC7BE","strada":"#8C827A","vegetazione":"#6F8C5B","siepi":"#4F6B46","ghiaia":"#C9C0B0","casette":"#8A6A4F","arredi":"#3A3C3E","cuscini":"#E4DED3","piscina":"#BFDDE6","solarium":"#D8D0C1","ombrellone":"#ECE5D6","muri":"#D6D1CD","muri_ovest":"#D6D1CD","logge":"#989594","sottotetto":"#D6D1CD","terrazzo":"#989594","frontalini":"#FFFFFF"},"lati":{"muri":true,"muri_ovest":true,"sottotetto":true,"terrazzo":true,"logge":true,"frontalini":true},"ringhiera":"tubolari","vetro":"trasparente"},{"id":"base2","nome":"Proposta 2","predefinita":true,"colori":{"muri@E":"#D6D1CD","muri@S":"#D6D1CD","muri@W":"#989594","muri@N":"#989594","muri_ovest@S":"#989594","muri_ovest@W":"#D6D1CD","muri_ovest@N":"#D6D1CD","spalla_ovest":"#989594","logge@E":"#989594","logge@S":"#989594","logge@N":"#D6D1CD","sottotetto@E":"#D6D1CD","sottotetto@S":"#D6D1CD","sottotetto@W":"#989594","sottotetto@N":"#989594","terrazzo@W":"#989594","terrazzo@S":"#989594","cornici":"#EDECE8","frontalini@balcone_W":"#D6D1CD","frontalini@balcone_S":"#FFFFFF","frontalini@balcone_N":"#FFFFFF","frontalini@pianerottolo_W":"#989594","frontalini@pianerottolo_N":"#989594","frontalini@balconcino_W":"#989594","frontalini@balconcino_S":"#FFFFFF","frontalini@balconcino_N":"#989594","frontalini@terrazzo_W":"#FFFFFF","frontalini@terrazzo_S":"#FFFFFF","frontalini@loggia1_E":"#D6D1CD","frontalini@loggia1_N":"#989594","frontalini@loggia2_E":"#D6D1CD","soffitti":"#EDECE8","spallette":"#EDECE8","davanzali":"#747472","lattoneria":"#3A3C3F","pilastri":"#D6D1CD","zoccolo":"#8E9091","tegole":"#4B4C4F","serramenti":"#162431","vetri":"#A9C9E5","tapparelle":"#6A6C6F","ringhiere":"#2A2B2D","portoncino":"#2B2C2E","garage":"#36383A","terrazzi":"#B3AEA8","scala":"#E2E1DD","box":"#D6D1CD","box_tetto":"#55585B","cancello":"#6C655E","recinzione":"#6C655E","muretto":"#C7C7C7","gradini":"#9E9E9E","vialetto":"#FFFFFF","prato":"#8FA46E","fiori":"#B23A48","pavimentazione":"#CBC7BE","strada":"#8C827A","vegetazione":"#6F8C5B","siepi":"#4F6B46","ghiaia":"#C9C0B0","casette":"#8A6A4F","arredi":"#3A3C3E","cuscini":"#E4DED3","piscina":"#BFDDE6","solarium":"#D8D0C1","ombrellone":"#ECE5D6","muri":"#D6D1CD","muri_ovest":"#D6D1CD","logge":"#989594","sottotetto":"#D6D1CD","terrazzo":"#989594","frontalini":"#FFFFFF"},"lati":{"muri":true,"muri_ovest":true,"sottotetto":true,"terrazzo":true,"logge":true,"frontalini":true},"ringhiera":"tubolari","vetro":"trasparente"}];
 let db = null, readOnly = false, variants = [];
+const allVariants = ()=>BUILTIN_VARIANTS.concat(variants);
 const fmt = iso => { try{ return new Date(iso).toLocaleString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
 let activeVar = store.get('casa3d.activeVar');
-function applyVariant(v){
+function applyVariant(v, silent){
   if(GLASS[v.vetro]) setGlassMode(v.vetro, false);
   setRailModel(v.ringhiera || 'vetro', false);
   applyColors(Object.assign({}, v.colori), null, v.lati || null);
   activeVar = v.id; store.set('casa3d.activeVar', activeVar); paintVariantSel();
-  toast(`Variante “${v.nome}” applicata`);
+  if(!silent) toast(`Variante “${v.nome}” applicata`);
 }
 function clearActiveVar(){ if(activeVar == null) return; activeVar = null; store.set('casa3d.activeVar', null); paintVariantSel(); }
 function paintVariantSel(){
@@ -2526,10 +2529,11 @@ function paintVariantSel(){
 
 function renderVariantChips(){
   const bar = $('#vchips'); bar.textContent = '';
-  bar.hidden = !variants.length; stage.classList.toggle('has-vchips', variants.length > 0);
-  if(!variants.length) return;
+  const list = allVariants();
+  bar.hidden = !list.length; stage.classList.toggle('has-vchips', list.length > 0);
+  if(!list.length) return;
   const lbl = document.createElement('span'); lbl.className = 'vclbl'; lbl.textContent = 'Varianti'; bar.appendChild(lbl);
-  variants.forEach(v=>{
+  list.forEach(v=>{
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'vbtn vchip'; b.dataset.id = v.id; b.title = `Applica la variante “${v.nome || 'Senza nome'}”`;
     b.innerHTML = `<span class="strip">${stripHtml(v.colori)}</span><span class="vcn"></span>`;
@@ -2542,19 +2546,14 @@ function renderVariantChips(){
 function renderVariants(){
   renderVariantChips();
   const list = $('#vlist'); list.textContent = '';
-  if(!variants.length){
-    const p = document.createElement('p'); p.className = 'note';
-    p.textContent = 'Nessuna variante ancora. Prepara i colori e salvali con un nome per confrontarli in seguito.';
-    list.appendChild(p); return;
-  }
-  variants.forEach(v=>{
+  allVariants().forEach(v=>{
     const it = document.createElement('div'); it.className = 'vitem'; it.dataset.id = v.id;
     it.innerHTML = `<div style="min-width:0"><div class="vn"></div><div class="vd"></div></div><div class="acts"><button class="btn small" type="button">Applica</button><button class="btn ghost small" type="button">Elimina</button></div><span class="strip">${stripHtml(v.colori)}</span>`;
     it.querySelector('.vn').textContent = v.nome || 'Senza nome';
-    it.querySelector('.vd').textContent = fmt(v.creato);
+    it.querySelector('.vd').textContent = v.predefinita ? 'Predefinita' : fmt(v.creato);
     const [bApply, bDel] = it.querySelectorAll('button');
     bApply.addEventListener('click', ()=>applyVariant(v));
-    if(readOnly) bDel.hidden = true;
+    if(readOnly || v.predefinita) bDel.hidden = true;
     let armed = false, armT;
     bDel.addEventListener('click', async ()=>{
       if(!armed){ armed = true; bDel.textContent = 'Conferma'; bDel.classList.add('warn'); armT = setTimeout(()=>{ armed=false; bDel.textContent='Elimina'; bDel.classList.remove('warn'); }, 3000); return; }
@@ -2782,6 +2781,7 @@ buildRows(); buildTints(); buildPresets(); buildRailSel();
   }); }
 paintAll(); paintGlass(); paintRail();
 paintPresets(); select('muri'); openCatOf('muri');
+if(!store.get('casa3d.colors')) applyVariant(BUILTIN_VARIANTS[0], true);
 placeSun(); applyLight(lightMode, false); resize();
 setView(VIEWS[store.get('casa3d.view')] ? store.get('casa3d.view') : 'se', true);
 $('#loading').hidden = true;
