@@ -458,6 +458,7 @@ h2::after{content:"";flex:1;height:1px;background:var(--line)}
 <script src="./lib/GLTFExporter.js"></script>
 <script src="./lib/GLTFLoader.js"></script>
 <script src="./lib/models.js"></script>
+<script src="./lib/textures.js"></script>
 <script>
 (function(){
 'use strict';
@@ -561,7 +562,7 @@ const PURA = [['57010','#716868'],['57012','#8B8281'],['57014','#B0A3A0'],['5701
 const FINAL = [['Bianco','Bianco','#EDECE8'],['Grigio chiaro caldo','Chiaro','#D6D1CD'],['Grigio medio','Medio','#989594']];
 const CODE_OF = Object.assign(Object.fromEntries(PURA.map(([c,h])=>[h, 'PURA '+c])), Object.fromEntries(FINAL.map(([n,c,h])=>[h, n])));
 const PRESETS = [
-  {id:'grigi', n:'Grigio caldo e grigio medio', c:{muri:'#D6D1CD', muri_ovest:'#D6D1CD', sottotetto:'#D6D1CD', terrazzo:'#D6D1CD', logge:'#989594', cornici:'#EDECE8', frontalini:'#EDECE8', spallette:'#EDECE8', pilastri:'#EDECE8', box:'#D6D1CD', terrazzi:'#B3AEA8'}},
+  {id:'grigi', n:'Grigio caldo e grigio medio', c:{muri:'#D9D3D2', muri_ovest:'#D9D3D2', sottotetto:'#D9D3D2', terrazzo:'#D9D3D2', logge:'#A8A1A6', cornici:'#EDECE8', frontalini:'#EDECE8', spallette:'#EDECE8', pilastri:'#EDECE8', box:'#D9D3D2', terrazzi:'#B3AEA8'}},
   {id:'originale', n:'Grigio neutro', c:{}},
   {id:'pura010', n:'PURA 010 (57010–57018)', c:{muri:'#CABFBA', muri_ovest:'#CABFBA', logge:'#8B8281', sottotetto:'#DBD3CE', cornici:'#DBD3CE', pilastri:'#DBD3CE', zoccolo:'#716868', serramenti:'#716868', tapparelle:'#8B8281', ringhiere:'#716868', garage:'#716868', box:'#B0A3A0'}},
   {id:'calce', n:'Calce bianca e antracite', c:{muri:'#EEEBE4',muri_ovest:'#EEEBE4',logge:'#CFC9BE',sottotetto:'#EEEBE4',cornici:'#FFFFFF',pilastri:'#FFFFFF',zoccolo:'#6F6E6B',tegole:'#3E3F42',serramenti:'#2A2C2E',tapparelle:'#3A3C3F',ringhiere:'#26282A',garage:'#2E3032'}},
@@ -581,11 +582,14 @@ const KEY_STRIP = ['muri','muri_ovest','logge','sottotetto','tegole','serramenti
 
 const storedColors = store.get('casa3d.colors') || {};
 
+const RETINT = {'#D6D1CD':'#D9D3D2', '#989594':'#A8A1A6', '#D7D6D3':'#D9D3D2', '#AAA4A6':'#A8A1A6'};
+Object.keys(storedColors).forEach(k=>{ const h = String(storedColors[k]).toUpperCase(); if(RETINT[h]) storedColors[k] = RETINT[h]; });
+
 const OLD_DEFAULTS = {cancello:'#686C6E', recinzione:'#686C6E', muretto:'#D5D5D3', strada:'#5E6164', terrazzi:'#C4C0B8', vialetto:'#ABA69D', pavimentazione:'#CBC7BE'};
 Object.keys(OLD_DEFAULTS).forEach(k=>{ if(storedColors[k] === OLD_DEFAULTS[k]) delete storedColors[k]; });
 [['pavimentazione','#AEABA6'],['zoccolo','#8E9091']].forEach(([k,v])=>{ if(storedColors[k] === v) delete storedColors[k]; });
 
-const OLD_SAMPLES = {'#D4D0CC':'#D6D1CD', '#949092':'#989594'};
+const OLD_SAMPLES = {'#D4D0CC':'#D9D3D2', '#949092':'#A8A1A6'};
 Object.keys(storedColors).forEach(k=>{ if(OLD_SAMPLES[storedColors[k]]) storedColors[k] = OLD_SAMPLES[storedColors[k]]; });
 let colors = Object.assign({}, ORIGINAL, storedColors);
 SIDE_KEYS.forEach(k=>{ if(!storedColors[k]) colors[k] = colors[baseOf(k)]; });
@@ -662,25 +666,47 @@ function slabTex(mixed, seed){
     g.putImageData(img,0,0);
   });
 }
+
+const PT_TILES = (()=>{
+  const W = 1024, H = 1152, MU = 0.88, MV = 0.99, TW = 0.22, TL = 0.33, r = rng(29);
+  const nx = Math.round(MU/TW), ny = Math.round(MV/TL), tone = [];
+  for(let i=0;i<nx*ny;i++) tone.push(0.9 + r()*0.16);
+  const hgt = new Float32Array(W*H), shade = new Float32Array(W*H);
+  for(let y=0;y<H;y++){
+    const v = (H-1-y)/H*MV, fy = (v % TL)/TL;
+    for(let x=0;x<W;x++){
+      const u = x/W*MU, fx = (u % TW)/TW;
+      let h, cav = 1;
+      if(fx < 0.58) h = -0.012*Math.sin(Math.PI*fx/0.58);
+      else { const t = (fx-0.79)/0.21; h = 0.05*Math.pow(Math.max(0, 1-t*t), 0.55); }
+      cav = 0.66 + 0.46*Math.min(1, Math.max(0, (h + 0.012)/0.062));
+      h += 0.004*Math.exp(-Math.pow((fx-0.035)/0.015, 2));
+      h += 0.022*(1-fy);
+      if(fy < 0.03) h -= 0.006*(1 - fy/0.03);
+      const sh = 1 - 0.42*Math.pow(Math.max(0, (fy-0.86)/0.14), 1.5);
+      hgt[y*W+x] = h; shade[y*W+x] = cav*sh*tone[Math.floor(v/TL)*nx + Math.floor(u/TW)];
+    }
+  }
+  const mk = ()=>{ const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
+  const cm = mk(), gm = cm.getContext('2d'), im = gm.createImageData(W,H);
+  const cn = mk(), gn = cn.getContext('2d'), inn = gn.createImageData(W,H);
+  const du = MU/W, dv = MV/H, at = (x,y)=>hgt[((y+H)%H)*W + (x+W)%W];
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const i = (y*W+x)*4;
+    const l = Math.max(0, Math.min(255, 220*shade[y*W+x] + (r()-0.5)*10 + Math.sin(x*0.9 + y*0.013)*2));
+    im.data[i] = im.data[i+1] = im.data[i+2] = l; im.data[i+3] = 255;
+    const gx = (at(x+1,y) - at(x-1,y))/(2*du), gy = -(at(x,y+1) - at(x,y-1))/(2*dv);
+    const k = 1/Math.hypot(gx, gy, 1);
+    inn.data[i] = (-gx*k*0.5+0.5)*255; inn.data[i+1] = (-gy*k*0.5+0.5)*255; inn.data[i+2] = (k*0.5+0.5)*255; inn.data[i+3] = 255;
+  }
+  gm.putImageData(im, 0, 0); gn.putImageData(inn, 0, 0);
+  const tex = (c, enc)=>{ const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.encoding = enc; t.repeat.set(1/MU, 1/MV); t.anisotropy = 16; return t; };
+  return {map:tex(cm, THREE.sRGBEncoding), normal:tex(cn, THREE.LinearEncoding)};
+})();
 const TEX = {
   plaster: grainTex(),
-  tiles: canvasTex(640,576,1.0,0.9,(g,w,h)=>{
-    const rr = rng(13);
-    g.fillStyle = '#8a8a8a'; g.fillRect(0,0,w,h);
-    const cols = 5, rows = 3, cw = w/cols, rh = h/rows;
-    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
-      const x0 = c*cw, y0 = r*rh, v = 0.86 + rr()*0.14, hi = (255*v)|0, lo = (150*v)|0;
-      const gr = g.createLinearGradient(x0,0,x0+cw,0);
-      gr.addColorStop(0,`rgb(${lo},${lo},${lo})`); gr.addColorStop(.45,`rgb(${hi},${hi},${hi})`); gr.addColorStop(.6,`rgb(${hi-8},${hi-8},${hi-8})`); gr.addColorStop(1,`rgb(${lo},${lo},${lo})`);
-      g.fillStyle = gr; g.fillRect(x0+5, y0, cw-10, rh);
-      g.strokeStyle = 'rgba(55,55,55,.6)'; g.lineWidth = 6;
-      g.beginPath(); g.ellipse(x0+cw/2, y0+rh-4, cw/2-8, 20, 0, Math.PI, 0, false); g.stroke();
-      g.fillStyle = 'rgba(40,40,40,.3)'; g.fillRect(x0+5, y0+rh-12, cw-10, 12);
-    }
-    const img = g.getImageData(0,0,w,h), d = img.data;
-    for(let i=0;i<d.length;i+=4){ const n = (rr()-0.5)*14; d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
-    g.putImageData(img,0,0);
-  }),
+  tiles: PT_TILES.map,
+  tilesN: PT_TILES.normal,
   stone: canvasTex(256,128,1.2,0.6,(g,w,h)=>{
     const r = rng(11); g.fillStyle = '#9b9b9b'; g.fillRect(0,0,w,h);
     let y = 0; const rowsH = [62,66];
@@ -815,7 +841,7 @@ function makeMat(k, o){ M[k] = new THREE.MeshStandardMaterial(Object.assign({col
 ['muri','muri_ovest','spalla_ovest','logge','sottotetto','terrazzo'].forEach(k=>makeMat(k,{map:TEX.plaster}));
 SIDE_KEYS.forEach(k=>{ makeMat(k,{map:TEX.plaster}); M[k].color.set(effColor(k)); });
 makeMat('cornici',{roughness:.85,map:TEX.plaster}); makeMat('spallette',{map:TEX.plaster}); makeMat('frontalini',{roughness:.85,map:TEX.plaster}); makeMat('soffitti',{map:TEX.plaster}); makeMat('davanzali',{roughness:.7}); makeMat('lattoneria',{roughness:.4,metalness:.35}); makeMat('pilastri',{roughness:.85,map:TEX.plaster});
-makeMat('zoccolo',{map:TEX.plinth,roughness:.6}); makeMat('tegole',{map:TEX.tiles,roughness:.8});
+makeMat('zoccolo',{map:TEX.plinth,roughness:.6}); makeMat('tegole',{map:TEX.tiles,roughness:.5});
 makeMat('serramenti',{roughness:.5,metalness:.15}); makeMat('vetri',{roughness:.18,metalness:.05});
 makeMat('tapparelle',{map:TEX.shutter,roughness:.6}); makeMat('ringhiere',{roughness:.45,metalness:.35});
 
@@ -1046,7 +1072,8 @@ function normalFromTex(tex, strength){
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.copy(tex.repeat); t.anisotropy = 8;
   return t;
 }
-[['tegole',4],['terrazzi',3],['vialetto',3],['pavimentazione',3],['strada',4],['zoccolo',2],['ghiaia',3],['solarium',3]]
+M.tegole.normalMap = TEX.tilesN; M.tegole.normalScale.set(1.6, 1.6); M.tegole.roughness = 0.58; M.tegole.envMapIntensity = 0.55;
+[['terrazzi',3],['vialetto',3],['pavimentazione',3],['strada',4],['zoccolo',2],['ghiaia',3],['solarium',3]]
   .forEach(([k,st])=>{ if(M[k] && M[k].map){ M[k].normalMap = normalFromTex(M[k].map, st); M[k].needsUpdate = true; } });
 Object.assign(M.vetri, {roughness:0.04, metalness:0.55, envMapIntensity:1.3});
 ['ringhiere','lattoneria','cancello','recinzione','serramenti','portoncino'].forEach(k=>Object.assign(M[k], {roughness:0.38, metalness:0.55}));
@@ -1090,6 +1117,10 @@ function cutFace(key, pts){
   const uv = P.map(p=>[alongN ? p.n : p.e, p.h]);
   const U0 = Math.min(...uv.map(q=>q[0])), U1 = Math.max(...uv.map(q=>q[0])), H0 = Math.min(...uv.map(q=>q[1])), H1 = Math.max(...uv.map(q=>q[1]));
   const ops = OPENINGS.filter(o=>o.face===sd && Math.abs(o.c-c) < 0.005 && o.u0 < U1-1e-4 && o.u1 > U0+1e-4 && o.h0 < H1-1e-4 && o.h1 > H0+1e-4);
+  for(let i=ops.length-1;i>=0;i--){
+    const o = ops[i];
+    if(ops.some((p,j)=>j!==i && !o.poly && p.u0<=o.u0+1e-6 && p.u1>=o.u1-1e-6 && p.h0<=o.h0+1e-6 && p.h1>=o.h1-1e-6 && (p.poly ? false : (j<i || p.u1-p.u0+p.h1-p.h0 > o.u1-o.u0+o.h1-o.h0+1e-6)))) ops.splice(i,1);
+  }
   if(!ops.length) return false;
   const to3 = (u,h)=> alongN ? V(c,u,h) : V(u,c,h);
   const push = tri=>{
@@ -1198,7 +1229,15 @@ function prismE(g, sec, e0, e1){
 function roof(sec, n0, n1, under){ prismN({def:'cornici', side:i=> i===0 ? 'tegole' : (i===2 && under ? under : 'cornici')}, sec, n0, n1); }
 
 const ROOF_T = 0.45, ROOF_UP = ROOF_T - 0.30;
-function houseRoof(sec, n0, n1, under){ roof([[sec[3][0], sec[3][1]+ROOF_T], [sec[2][0], sec[2][1]+ROOF_T], sec[2], sec[3]], n0, n1, under); }
+
+const ROOF_ENDS = {};
+function houseRoof(sec, n0, n1, under){
+  const top = [[sec[3][0], sec[3][1]+ROOF_T], [sec[2][0], sec[2][1]+ROOF_T]], k = p=>p[0].toFixed(2)+','+p[1].toFixed(2);
+  if(COLLECT) top.forEach(p=>{ ROOF_ENDS[k(p)] = (ROOF_ENDS[k(p)] || 0) + 1; });
+  const inner = p=>ROOF_ENDS[k(p)] > 1;
+  prismN({def:'cornici', side:i=> i===0 || (i===1 && inner(top[1])) || (i===3 && inner(top[0])) ? 'tegole' : (i===2 && under ? under : 'cornici')},
+    [top[0], top[1], sec[2], sec[3]], n0, n1);
+}
 
 function beam(key, a, b, w, t){
   const dx = b[0]-a[0], dn = b[1]-a[1], L = Math.hypot(dx,dn) || 1;
@@ -1245,11 +1284,15 @@ function opening(face, c, a0,a1, h0,top, o, sides){
   for(let j=1;j<rows;j++){ const h = b0+(b1-b0)*j/rows; if(h<tt) fbox(face,c,'serramenti', a0,a1, -D,-R, h-0.03,h+0.03); }
 }
 
-function frame(face, c, u0,u1, h0,h1){
+function frame(face, c, u0,u1, h0,h1, bands){
   const sw = WIN_FRAME;
-  fbox(face,c,'spallette', u0,u1, 0,0.03, h1-sw,h1);
-  fbox(face,c,'spallette', u0,u0+sw, 0,0.03, h0,h1-sw);
-  fbox(face,c,'spallette', u1-sw,u1, 0,0.03, h0,h1-sw);
+  if(COLLECT){
+    if(bands) [[u0,u1,h1-sw,h1],[u0,u0+sw,h0-0.03,h1-sw],[u1-sw,u1,h0-0.03,h1-sw]].forEach(([a,b,p,q])=>OPENINGS.push({face, c, u0:a, u1:b, h0:p, h1:q}));
+    else OPENINGS.push({face, c, u0, u1, h0:h0-0.03, h1});
+  }
+  fbox(face,c,'spallette', u0,u1, -0.03,0, h1-sw,h1);
+  fbox(face,c,'spallette', u0,u0+sw, -0.03,0, h0-0.03,h1-sw);
+  fbox(face,c,'spallette', u1-sw,u1, -0.03,0, h0-0.03,h1-sw);
 }
 
 function sill(face, c, u0,u1, h){ fbox(face,c,'davanzali', u0-0.03,u1+0.03, 0,0.06, h-0.03,h); }
@@ -1269,11 +1312,11 @@ function winTrapS(c, u0,u1, h0, h1L,h1R, o){
   const top = u => h1L + k*(u-u0);
   const a0 = u0+sw, a1 = u1-sw, hb = h0-0.03, tA = top(a0)-sv, tB = top(a1)-sv;
   const P = (g, pts, d0, d1)=>prismN(g, pts, c-d1, c-d0);
-  if(COLLECT) OPENINGS.push({face:'S', c, u0:a0, u1:a1, h0:hb, h1:Math.max(tA,tB), poly:[[a0,hb],[a1,hb],[a1,tB],[a0,tA]]});
+  if(COLLECT) OPENINGS.push({face:'S', c, u0, u1, h0:hb, h1:Math.max(top(u0),top(u1)), poly:[[u0,hb],[u1,hb],[u1,top(u1)],[u0,top(u0)]]});
 
-  P('spallette', [[u0,top(u0)],[u1,top(u1)],[u1,top(u1)-sv],[u0,top(u0)-sv]], 0, 0.03);
-  fbox('S',c,'spallette', u0,a0, 0,0.03, h0, top(a0)-sv);
-  fbox('S',c,'spallette', a1,u1, 0,0.03, h0, top(u1)-sv);
+  P('spallette', [[u0,top(u0)],[u1,top(u1)],[u1,top(u1)-sv],[u0,top(u0)-sv]], -0.03, 0);
+  fbox('S',c,'spallette', u0,a0, -0.03,0, hb, top(a0)-sv);
+  fbox('S',c,'spallette', a1,u1, -0.03,0, hb, top(u1)-sv);
   sill('S',c, u0,u1, h0);
 
   fbox('S',c,'spallette', a0-0.03,a0, -D,-0.002, hb,tA);
@@ -1332,7 +1375,7 @@ function entranceDoor(face, c, u0,u1, h0,h1){
 }
 function winDoor(face, c, u0,u1, h0,h1, o){
   const sw = WIN_FRAME, a0 = u0+sw, a1 = u1-sw, top = h1-sw, sh = o.sillH + 0.06, lo = o.doorSide === 'lo';
-  frame(face,c, u0,u1, h0,h1);
+  frame(face,c, u0,u1, h0,h1, true);
   const dA = lo ? a0 : o.split, dB = lo ? o.split : a1, wA = lo ? o.split : a0, wB = lo ? a1 : o.split;
 
   opening(face,c, dA,dB, h0,top, {door:true, shutter:o.doorShutter}, lo ? {lo:true, hi:sh-0.03} : {lo:sh-0.03, hi:true});
@@ -1508,7 +1551,10 @@ function finishBuilder(group, pickable){
     B.faces[key].forEach(pts=>{
       const n = newell(pts);
       let u = new THREE.Vector3().crossVectors(up, n);
-      if(u.lengthSq() < 1e-6) u.set(1,0,0); else u.normalize();
+      if(u.lengthSq() < 1e-6){
+
+        if(key === 'tegole') u.set(0, 0, centroid(pts).x < 0 ? 1 : -1); else u.set(1,0,0);
+      } else u.normalize();
       const v = new THREE.Vector3().crossVectors(n, u).normalize();
       for(let i=1;i<pts.length-1;i++){
         [pts[0],pts[i],pts[i+1]].forEach(p=>{
@@ -1568,7 +1614,7 @@ function buildHouse(){
   houseRoof([[4.68,8.62],[7.17,9.39],[7.17,9.09],[4.68,8.32]], -0.56, 7.5);
   houseRoof([[3.85,8.62],[4.68,8.62],[4.68,8.32],[3.85,8.32]], -0.56, 5.0);
   houseRoof([[9.93,10.30],[13.33,8.97],[13.33,8.67],[9.93,10.0]], 6.55, 11.86, 'soffitti');
-  houseRoof([[13.33,8.97],[15.11,8.97],[15.11,8.66],[13.33,8.66]], 6.55, 11.86, 'soffitti');
+  houseRoof([[13.33,8.97],[15.11,8.97],[15.11,8.67],[13.33,8.67]], 6.55, 11.86, 'soffitti');
   houseRoof([[4.71,8.60],[9.93,10.30],[9.93,10.0],[4.71,8.30]], 6.55, 11.86);
   houseRoof([[3.85,8.60],[4.71,8.60],[4.71,8.30],[3.85,8.30]], 9.61, 11.86);
   roofMetal();
@@ -1620,7 +1666,7 @@ function buildHouse(){
   win('E',11.97, 8.16,10.38, 2.97,5.71, {cols:3, door:true, shutter:.13});
   win('E',11.97, 8.17,10.39, 6.28,8.65, {cols:3, door:true, shutter:.43});
   entranceDoor('E',9.97, 4.44,6.73, 0,2.57);
-  garageDoor('E',11.83, 8.00,10.53, 0,2.42);
+  garageDoor('E',11.83, 8.285,10.815, 0,2.42);
 
   garageDoor('W',0, 5.38,7.92, 0,2.42);
   win('W',0, 1.74,3.98, 0,2.42, {cols:3, door:true, shutter:.12});
@@ -1635,7 +1681,7 @@ function buildHouse(){
   zoc('W',0, 0.39,1.74); zoc('W',0, 3.98,5.38); zoc('W',0, 7.92,9.06);
   zoc('N',9.06, 0,4.55); zoc('N',11.4, 4.55,11.83);
   zoc('W',4.55, 9.06,11.4); zoc('W',4.55, 0,0.39);
-  zoc('E',9.97, 0,4.44); zoc('E',9.97, 6.73,7.7); zoc('E',11.83, 7.7,8.0); zoc('E',11.83, 10.53,11.4);
+  zoc('E',9.97, 0,4.44); zoc('E',9.97, 6.73,7.7); zoc('E',11.83, 7.7,8.285); zoc('E',11.83, 10.815,11.4);
 }
 
 const DROP = 1.0;
@@ -1876,7 +1922,7 @@ function buildBackyard(group){
   const dark = [0.72, 0.78, 0.7], olive = [1.22, 1.12, 1.18];
   group.add(makeTree(-39.4,4.0, 1.1, r, false, {tall:true, tint:dark}));
   group.add(makeTree(-31.0,4.6, 1.0, r, false, {tall:true, tint:dark}));
-  group.add(makePalm(-22.0,4.0, 5.2, r));
+  group.add(makePalm(-22.0,4.0, 4.2, r));
   group.add(makeTree(-31.3,10.0, 0.75, r, false, {airy:true, tint:olive}));
   const bush = makeBush(-53.9,8.4, 0.45, r); bush.name = 'Cespuglio orto'; group.add(bush);
   group.add(makePalm(-11.5,-6.5, 1.8, r, true));
@@ -2094,6 +2140,47 @@ function modelPiece(lib, id, i){
   c.traverse(o=>{ if(o.isMesh){ o.castShadow = o.receiveShadow = true; } });
   return g;
 }
+
+function loadPhotoTex(){
+  const src = window.CASA_TEX;
+  if(!src) return;
+  const img = (uri, cb)=>{ const i = new Image(); i.onload = ()=>cb(i); i.src = uri; };
+  const setup = (t, m, enc)=>{ t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1/m, 1/m); t.anisotropy = 8; t.encoding = enc; t.needsUpdate = true; return t; };
+
+  const lumTex = (im, m, o)=>{
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+    const g = c.getContext('2d', {willReadFrequently:true}); g.drawImage(im, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    let sum = 0;
+    for(let i=0;i<p.length;i+=4) sum += p[i]*0.3 + p[i+1]*0.59 + p[i+2]*0.11;
+    const mean = sum/(p.length/4);
+    for(let i=0;i<p.length;i+=4){
+      const L = p[i]*0.3 + p[i+1]*0.59 + p[i+2]*0.11, L2 = o.mean + (L - mean)*o.k, f = L2/Math.max(L, 1);
+      for(let j=0;j<3;j++) p[i+j] = Math.max(0, Math.min(255, (L + (p[i+j] - L)*o.sat)*f));
+    }
+    g.putImageData(d, 0, 0);
+    return setup(new THREE.CanvasTexture(c), m, THREE.sRGBEncoding);
+  };
+  const use = (mat, dKey, nKey, m, o, ns)=>{
+    img(src[dKey], im=>{ mat.map = lumTex(im, m, o); mat.needsUpdate = true; needs = true; });
+    img(src[nKey], im=>{ mat.normalMap = setup(new THREE.Texture(im), m, THREE.LinearEncoding); mat.normalScale.set(ns, ns); mat.needsUpdate = true; needs = true; });
+  };
+  use(M.prato, 'grassD', 'grassN', 2.0, {sat:0, mean:205, k:1.5}, 1.6);
+  use(fixedMats.soil, 'soilD', 'soilN', 2.0, {sat:0.3, mean:225, k:1.0}, 1.0);
+
+  M.prato.onBeforeCompile = sh=>{
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `
+      #ifdef USE_MAP
+        vec4 sampledDiffuseColor = mix(texture2D(map, vUv), texture2D(map, vec2(vUv.y, -vUv.x)*0.61 + 0.37), 0.3);
+        vec2 q = vUv*0.09; vec2 i0 = floor(q), f0 = fract(q); f0 = f0*f0*(3.0 - 2.0*f0);
+        #define HSH(p) fract(sin(dot(p, vec2(127.1, 311.7)))*43758.5453)
+        float nz = mix(mix(HSH(i0), HSH(i0 + vec2(1.0, 0.0)), f0.x), mix(HSH(i0 + vec2(0.0, 1.0)), HSH(i0 + vec2(1.0, 1.0)), f0.x), f0.y);
+        sampledDiffuseColor.rgb *= mix(vec3(0.80, 0.90, 0.78), vec3(1.14, 1.08, 0.86), nz);
+        diffuseColor *= sampledDiffuseColor;
+      #endif`);
+  };
+}
+loadPhotoTex();
 loadModels(lib=>{
   const furn = new THREE.Group(); furn.name = 'Arredi e piante'; furn.userData.tree = true;
   const r = rng(57);
@@ -2160,7 +2247,9 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(300, 48, 24), new THREE.Shad
         cc += glowCol * pow(sd, 5.0) * 0.45 * sunVis;
         col = mix(col, cc, c*0.94);
       }
-      gl_FragColor = vec4(linOut > 0.5 ? max(col, 0.0) : pow(max(col, 0.0), vec3(1.0/2.2)), 1.0);
+      vec3 lc = pow(max(col, 0.0), vec3(2.2));
+      lc = mix(vec3(dot(lc, vec3(0.2126, 0.7152, 0.0722))), lc, 0.5);
+      gl_FragColor = vec4(linOut > 0.5 ? lc : pow(max(col, 0.0), vec3(1.0/2.2)), 1.0);
     }`
 }));
 sky.renderOrder = -1000; sky.frustumCulled = false; sky.name = 'Cielo';
@@ -2168,9 +2257,9 @@ scene.add(sky);
 
 const LIGHTS = {
   sole:     {n:'Soleggiato', sun:['#FFF5E8',0.72], hemi:['#EEF3F7','#B7B0A2',0.42], amb:0.12, shadow:true,
-             sky:{zenith:'#3F78B8', horizon:'#CFE2EF', ground:'#B9B5AC', sunCol:'#FFFBEF', glowCol:'#FFF1D6', sunVis:1, cover:0.38, cloudCol:'#FFFFFF', cloudShade:'#B9C3CE'}},
-  caldo:    {n:'Alba e tramonto', sun:['#FFB070',0.9], hemi:['#FFD9B8','#8A7766',0.34], amb:0.1, shadow:true, sunH:9,
-             sky:{zenith:'#46598C', horizon:'#F4A86E', ground:'#8E7D70', sunCol:'#FFE2B0', glowCol:'#FF9A50', sunVis:1, cover:0.42, cloudCol:'#F7C6A2', cloudShade:'#8E7488'}},
+             sky:{zenith:'#6A95C6', horizon:'#D8E5EE', ground:'#B9B5AC', sunCol:'#FFFBEF', glowCol:'#FFF1D6', sunVis:1, cover:0.38, cloudCol:'#FFFFFF', cloudShade:'#B9C3CE'}},
+  caldo:    {n:'Alba e tramonto', sun:['#FFDCB8',0.85], hemi:['#D5D8E2','#7F7A74',0.34], amb:0.1, shadow:true, sunH:9,
+             sky:{zenith:'#4A5E8E', horizon:'#EDBB94', ground:'#8E8178', sunCol:'#FFE6C2', glowCol:'#FFB37A', sunVis:1, cover:0.42, cloudCol:'#F1D0B8', cloudShade:'#8A7A8A'}},
   nuvoloso: {n:'Nuvoloso', sun:['#EEF1F3',0.16], hemi:['#E1E6EA','#A09C94',0.78], amb:0.26, shadow:false,
              sky:{zenith:'#8C97A2', horizon:'#C8CDD1', ground:'#A8A6A0', sunCol:'#F2F4F5', glowCol:'#C9CED2', sunVis:0, cover:0.97, cloudCol:'#D3D8DC', cloudShade:'#8E979F'}}
 };
@@ -2191,14 +2280,30 @@ function applyLight(m, setSunHeight){
   }
   document.querySelectorAll('#lightSel button').forEach(b=>b.setAttribute('aria-checked', String(b.dataset.l === m)));
   if(photo){
-    hemi.intensity *= 0.3; amb.intensity *= 0.1; sun.intensity *= 1.0;
+    hemi.intensity *= 0.6; amb.intensity *= 0.35; sun.intensity *= 1.0;
   }
   fog.color.set(L.sky.horizon); envDirty = true;
   needs = true;
 }
 
+THREE.ShaderChunk.tonemapping_pars_fragment = THREE.ShaderChunk.tonemapping_pars_fragment.replace(
+  'vec3 CustomToneMapping( vec3 color ) { return color; }',
+  `vec3 CustomToneMapping( vec3 color ) {
+    color *= toneMappingExposure;
+    float lum = dot( color, vec3( 0.2126, 0.7152, 0.0722 ) );
+    color = mix( vec3( lum ), color, 0.85 );
+    color = color * 0.96 + 0.012;
+    float x = min( color.r, min( color.g, color.b ) );
+    color -= x < 0.08 ? x - 6.25 * x * x : 0.04;
+    float peak = max( color.r, max( color.g, color.b ) );
+    if( peak < 0.76 ) return color;
+    float d = 0.24, np = 1.0 - d * d / ( peak + d - 0.76 );
+    color *= np / peak;
+    return mix( color, vec3( np ), 1.0 - 1.0 / ( 0.15 * ( peak - np ) + 1.0 ) );
+  }`);
+const PHOTO_EXPOSURE = 1.12;
 let photo = store.get('casa3d.photo'); if(photo === null) photo = true;
-const fog = new THREE.Fog('#CFE2EF', 110, 520);
+const fog = new THREE.Fog('#CFE2EF', 60, 480);
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envScene = new THREE.Scene();
 envScene.add(new THREE.Mesh(sky.geometry, new THREE.ShaderMaterial({uniforms:Object.assign({}, skyU, {linOut:{value:1}}),
@@ -2211,12 +2316,98 @@ function updateEnv(){
   scene.environment = envRT.texture;
 }
 function applyPhoto(){
-  renderer.toneMapping = photo ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
-  renderer.toneMappingExposure = 0.9;
+  renderer.toneMapping = photo ? THREE.CustomToneMapping : THREE.NoToneMapping;
+  renderer.toneMappingExposure = PHOTO_EXPOSURE;
   scene.fog = photo ? fog : null;
   scene.traverse(o=>{ if(o.material) [].concat(o.material).forEach(m=>m.needsUpdate = true); });
   $('#tPhoto').checked = photo;
   applyLight(lightMode, false);
+}
+
+const aoOK = renderer.capabilities.isWebGL2 && !matchMedia('(pointer:coarse)').matches;
+let aoRT = null, aoHalf = null;
+const fsGeo = new THREE.PlaneGeometry(2, 2), fsCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const FS_VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+const aoMat = new THREE.ShaderMaterial({
+  uniforms:{tDepth:{value:null}, proj:{value:new THREE.Matrix4()}, invProj:{value:new THREE.Matrix4()}, res:{value:new THREE.Vector2()},
+            radius:{value:0.5}, strength:{value:1.5}},
+  vertexShader:FS_VERT, depthTest:false, depthWrite:false, toneMapped:false,
+  fragmentShader:`
+    uniform sampler2D tDepth; uniform mat4 proj, invProj; uniform vec2 res; uniform float radius, strength;
+    varying vec2 vUv;
+    vec3 vp(vec2 uv){ float d = textureLod(tDepth, uv, 0.0).x; vec4 q = invProj*vec4(uv*2.0-1.0, d*2.0-1.0, 1.0); return q.xyz/q.w; }
+    void main(){
+      float d = textureLod(tDepth, vUv, 0.0).x;
+      if(d >= 0.999999){ gl_FragColor = vec4(1.0); return; }
+      vec3 P = vp(vUv);
+      vec2 px = 1.0/res;
+      vec3 r = vp(vUv + vec2(px.x, 0.0)) - P, l = P - vp(vUv - vec2(px.x, 0.0));
+      vec3 u = vp(vUv + vec2(0.0, px.y)) - P, b = P - vp(vUv - vec2(0.0, px.y));
+      vec3 N = normalize(cross(abs(r.z) < abs(l.z) ? r : l, abs(u.z) < abs(b.z) ? u : b));
+      float z = -P.z;
+      float rs = min(radius*proj[1][1]*0.5/z, 0.1);
+      float ang = fract(52.9829189*fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))))*6.2831853;
+      float sum = 0.0;
+      for(int i = 0; i < 16; i++){
+        float t = (float(i) + 0.5)/16.0, a = ang + float(i)*2.3999632;
+        vec2 o = vec2(cos(a)*res.y/res.x, sin(a))*rs*sqrt(t);
+        vec3 v = vp(vUv + o) - P;
+        float vv = dot(v, v);
+        float f = clamp(1.0 - vv/(radius*radius), 0.0, 1.0);
+        sum += f*max(0.0, dot(v, N)/sqrt(vv + 1e-5) - 0.15 - 0.002*z);
+      }
+      float ao = clamp(1.0 - strength*sum/16.0, 0.65, 1.0);
+      ao = mix(ao, 1.0, smoothstep(90.0, 180.0, z));
+      gl_FragColor = vec4(ao, ao, ao, 1.0);
+    }`
+});
+const compMat = new THREE.ShaderMaterial({
+  uniforms:{tColor:{value:null}, tAO:{value:null}, tDepth:{value:null}, aoRes:{value:new THREE.Vector2()}, nf:{value:new THREE.Vector2()}},
+  vertexShader:FS_VERT, depthTest:false, depthWrite:false,
+  fragmentShader:`
+    uniform sampler2D tColor, tAO, tDepth; uniform vec2 aoRes, nf;
+    varying vec2 vUv;
+    float lz(float d){ float n = nf.x, f = nf.y; return 2.0*n*f/((f + n) - (d*2.0 - 1.0)*(f - n)); }
+    void main(){
+      vec4 c = textureLod(tColor, vUv, 0.0);
+      float d = textureLod(tDepth, vUv, 0.0).x;
+      if(d >= 0.999999){ gl_FragColor = vec4(c.rgb, 1.0); return; }
+      float zc = lz(d), s = 0.0, w = 0.0;
+      for(int x = -1; x <= 1; x++) for(int y = -1; y <= 1; y++){
+        vec2 uv = vUv + vec2(float(x), float(y))/aoRes;
+        float wt = exp(-abs(lz(textureLod(tDepth, uv, 0.0).x) - zc)/(zc*0.015)) + 1e-4;
+        s += textureLod(tAO, uv, 0.0).r*wt; w += wt;
+      }
+      gl_FragColor = vec4(c.rgb*(s/w), 1.0);
+      #include <tonemapping_fragment>
+      #include <encodings_fragment>
+    }`
+});
+const aoQuad = new THREE.Mesh(fsGeo, aoMat), compQuad = new THREE.Mesh(fsGeo, compMat);
+aoQuad.frustumCulled = compQuad.frustumCulled = false;
+const aoScene = new THREE.Scene(), compScene = new THREE.Scene();
+aoScene.add(aoQuad); compScene.add(compQuad);
+const _dbs = new THREE.Vector2();
+function aoTargets(){
+  renderer.getDrawingBufferSize(_dbs);
+  if(aoRT && aoRT.width === _dbs.x && aoRT.height === _dbs.y) return;
+  if(aoRT){ aoRT.depthTexture.dispose(); aoRT.dispose(); aoHalf.dispose(); }
+  aoRT = new THREE.WebGLRenderTarget(_dbs.x, _dbs.y, {type:THREE.HalfFloatType, samples:4});
+  aoRT.depthTexture = new THREE.DepthTexture(_dbs.x, _dbs.y, THREE.UnsignedIntType);
+  aoHalf = new THREE.WebGLRenderTarget(Math.ceil(_dbs.x/2), Math.ceil(_dbs.y/2));
+}
+function renderFrame(){
+  if(!(aoOK && photo && cam === persp)){ renderer.render(scene, cam); return; }
+  aoTargets();
+  renderer.setRenderTarget(aoRT); renderer.render(scene, cam);
+  const U = aoMat.uniforms;
+  U.tDepth.value = aoRT.depthTexture; U.proj.value.copy(cam.projectionMatrix); U.invProj.value.copy(cam.projectionMatrixInverse);
+  U.res.value.set(aoRT.width, aoRT.height);
+  renderer.setRenderTarget(aoHalf); renderer.render(aoScene, fsCam);
+  const C = compMat.uniforms;
+  C.tColor.value = aoRT.texture; C.tAO.value = aoHalf.texture; C.tDepth.value = aoRT.depthTexture;
+  C.aoRes.value.set(aoHalf.width, aoHalf.height); C.nf.value.set(cam.near, cam.far);
+  renderer.setRenderTarget(null); renderer.render(compScene, fsCam);
 }
 
 const shadowRot = new THREE.Matrix4(), shadowInv = new THREE.Matrix4(), shadowC = new THREE.Vector3(), ORIGIN = new THREE.Vector3();
@@ -2288,11 +2479,12 @@ const VIEWS = {
   S: {p:false, dir:[0,-1], sub:'Prospetto · proiezione ortogonale', name:'Prospetto sud'}
 };
 let currentView = 'se', anim = null;
-let nav = null, navPrev = 'se';
+let nav = null;
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 function setView(id, instant){
   const v = VIEWS[id]; if(!v) return;
   if(nav) stopNav();
+  if(persp.fov !== 35){ persp.fov = 35; persp.updateProjectionMatrix(); }
   currentView = id; userMoved = false;
   document.querySelectorAll('.vbtn[data-view]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===id)));
   $('#tbSub').textContent = v.sub; $('#tbName').textContent = v.name;
@@ -2387,8 +2579,8 @@ function blocked(x, z, nx, nz){
 }
 const locked = ()=>document.pointerLockElement === canvas;
 
-let freeLook = false;
-function noLock(){ if(freeLook) return; freeLook = true; if(nav) paintNavMode(); }
+let freeLook = false, lockWorked = false;
+function noLock(){ if(!freeLook && !lockWorked) freeLook = true; if(nav) paintNavMode(); }
 function lockMouse(){
   if(locked() || freeLook || !matchMedia('(pointer:fine)').matches) return;
   if(!canvas.requestPointerLock){ noLock(); return; }
@@ -2413,7 +2605,6 @@ function setNavMode(mode){
 }
 function startNav(mode){
   if(nav){ setNavMode(mode); lockMouse(); return; }
-  navPrev = VIEWS[currentView] ? currentView : 'se';
   anim = null; userMoved = true;
   cam = persp; ctrlP.enabled = false; ctrlO.enabled = false;
   persp.fov = 70; persp.updateProjectionMatrix();
@@ -2440,6 +2631,23 @@ function stopNav(){
   persp.fov = 35; persp.updateProjectionMatrix();
   $('#navSpeed').hidden = true; $('#navPad').hidden = true; $('#joy').hidden = true; resetJoy(); stage.classList.remove('navigating', 'touchnav');
   $('#bWalk').setAttribute('aria-pressed','false'); $('#bFly').setAttribute('aria-pressed','false');
+}
+
+function exitNavHere(){
+  if(!nav) return;
+  const pos = persp.position.clone(), fov = persp.fov, d = new THREE.Vector3();
+  persp.getWorldDirection(d);
+  stopNav();
+  persp.fov = fov; persp.updateProjectionMatrix();
+  const t = pos.clone().addScaledVector(d, 10);
+  t.y = Math.min(t.y, pos.y + Math.tan(ctrlP.maxPolarAngle - Math.PI/2)*Math.hypot(t.x-pos.x, t.z-pos.z));
+  ctrlP.target.copy(t); ctrlP.enabled = true; ctrlO.enabled = false; cam = persp; anim = null;
+  ctrlP.update();
+  currentView = 'free'; userMoved = true;
+  $('#tbSub').textContent = 'Vista libera'; $('#tbName').textContent = 'Vista libera'; $('#viewName').textContent = 'Vista libera';
+  $('#hint').textContent = 'Trascina per ruotare · rotella per lo zoom · clic su una superficie per sceglierne il colore';
+  applyContextVisibility();
+  needs = true;
 }
 function applyNavCamera(){
   persp.position.copy(nav.p);
@@ -2523,9 +2731,9 @@ document.addEventListener('mousemove', e=>{
 });
 let navWasLocked = false;
 document.addEventListener('pointerlockchange', ()=>{
-  if(locked()){ navWasLocked = true; if(nav) paintNavMode(); return; }
+  if(locked()){ navWasLocked = true; lockWorked = true; freeLook = false; if(nav) paintNavMode(); return; }
 
-  if(nav && navWasLocked) setView(navPrev);
+  if(nav && navWasLocked) exitNavHere();
   navWasLocked = false;
 });
 let lookDrag = null;
@@ -2542,7 +2750,7 @@ $('#navSpeedR').addEventListener('input', e=>setNavMul(+e.target.value));
 const typing = el => el && ((el.tagName === 'INPUT' && el.type !== 'range') || el.tagName === 'TEXTAREA' || el.isContentEditable);
 window.addEventListener('keydown', e=>{
   if(!nav || typing(e.target)) return;
-  if(e.code === 'Escape'){ setView(navPrev); return; }
+  if(e.code === 'Escape'){ exitNavHere(); return; }
   if(e.code === 'Equal' || e.code === 'NumpadAdd'){ setNavMul(navMul[nav.mode] + 0.2); return; }
   if(e.code === 'Minus' || e.code === 'NumpadSubtract'){ setNavMul(navMul[nav.mode] - 0.2); return; }
   if(!e.repeat){ if(e.code === 'Space') spacePressed(); if(e.code === 'KeyW' || e.code === 'ArrowUp') forwardPressed(); }
@@ -2929,7 +3137,7 @@ function paintPresets(){ document.querySelectorAll('.preset').forEach(b=>b.setAt
 
 const use = name => (window.claude && typeof window.claude.use === 'function') ? window.claude.use(name).catch(()=>null) : Promise.resolve(null);
 
-const BUILTIN_VARIANTS = [{"id":"base1","nome":"Proposta 1","predefinita":true,"colori":{"muri@E":"#D6D1CD","muri@S":"#D6D1CD","muri@W":"#989594","muri@N":"#989594","muri_ovest@S":"#D6D1CD","muri_ovest@W":"#D6D1CD","muri_ovest@N":"#D6D1CD","spalla_ovest":"#D6D1CD","logge@E":"#989594","logge@S":"#989594","logge@N":"#D6D1CD","sottotetto@E":"#D6D1CD","sottotetto@S":"#D6D1CD","sottotetto@W":"#989594","sottotetto@N":"#989594","terrazzo@W":"#989594","terrazzo@S":"#989594","cornici":"#EDECE8","frontalini@balcone_W":"#D6D1CD","frontalini@balcone_S":"#FFFFFF","frontalini@balcone_N":"#FFFFFF","frontalini@pianerottolo_W":"#989594","frontalini@pianerottolo_N":"#989594","frontalini@balconcino_W":"#989594","frontalini@balconcino_S":"#FFFFFF","frontalini@balconcino_N":"#989594","frontalini@terrazzo_W":"#FFFFFF","frontalini@terrazzo_S":"#FFFFFF","frontalini@loggia1_E":"#D6D1CD","frontalini@loggia1_N":"#989594","frontalini@loggia2_E":"#D6D1CD","soffitti":"#EDECE8","spallette":"#EDECE8","davanzali":"#747472","lattoneria":"#3A3C3F","pilastri":"#D6D1CD","zoccolo":"#8E9091","tegole":"#4B4C4F","serramenti":"#162431","vetri":"#A9C9E5","tapparelle":"#6A6C6F","ringhiere":"#2A2B2D","portoncino":"#2B2C2E","garage":"#36383A","terrazzi":"#B3AEA8","scala":"#E2E1DD","box":"#D6D1CD","box_tetto":"#55585B","cancello":"#6C655E","recinzione":"#6C655E","muretto":"#C7C7C7","gradini":"#9E9E9E","vialetto":"#FFFFFF","prato":"#8FA46E","fiori":"#B23A48","pavimentazione":"#CBC7BE","strada":"#8C827A","vegetazione":"#6F8C5B","siepi":"#4F6B46","ghiaia":"#C9C0B0","casette":"#8A6A4F","arredi":"#3A3C3E","cuscini":"#E4DED3","piscina":"#BFDDE6","solarium":"#D8D0C1","ombrellone":"#ECE5D6","muri":"#D6D1CD","muri_ovest":"#D6D1CD","logge":"#989594","sottotetto":"#D6D1CD","terrazzo":"#989594","frontalini":"#FFFFFF"},"lati":{"muri":true,"muri_ovest":true,"sottotetto":true,"terrazzo":true,"logge":true,"frontalini":true},"ringhiera":"tubolari","vetro":"trasparente"},{"id":"base2","nome":"Proposta 2","predefinita":true,"colori":{"muri@E":"#D6D1CD","muri@S":"#D6D1CD","muri@W":"#989594","muri@N":"#989594","muri_ovest@S":"#989594","muri_ovest@W":"#D6D1CD","muri_ovest@N":"#D6D1CD","spalla_ovest":"#989594","logge@E":"#989594","logge@S":"#989594","logge@N":"#D6D1CD","sottotetto@E":"#D6D1CD","sottotetto@S":"#D6D1CD","sottotetto@W":"#989594","sottotetto@N":"#989594","terrazzo@W":"#989594","terrazzo@S":"#989594","cornici":"#EDECE8","frontalini@balcone_W":"#D6D1CD","frontalini@balcone_S":"#FFFFFF","frontalini@balcone_N":"#FFFFFF","frontalini@pianerottolo_W":"#989594","frontalini@pianerottolo_N":"#989594","frontalini@balconcino_W":"#989594","frontalini@balconcino_S":"#FFFFFF","frontalini@balconcino_N":"#989594","frontalini@terrazzo_W":"#FFFFFF","frontalini@terrazzo_S":"#FFFFFF","frontalini@loggia1_E":"#D6D1CD","frontalini@loggia1_N":"#989594","frontalini@loggia2_E":"#D6D1CD","soffitti":"#EDECE8","spallette":"#EDECE8","davanzali":"#747472","lattoneria":"#3A3C3F","pilastri":"#D6D1CD","zoccolo":"#8E9091","tegole":"#4B4C4F","serramenti":"#162431","vetri":"#A9C9E5","tapparelle":"#6A6C6F","ringhiere":"#2A2B2D","portoncino":"#2B2C2E","garage":"#36383A","terrazzi":"#B3AEA8","scala":"#E2E1DD","box":"#D6D1CD","box_tetto":"#55585B","cancello":"#6C655E","recinzione":"#6C655E","muretto":"#C7C7C7","gradini":"#9E9E9E","vialetto":"#FFFFFF","prato":"#8FA46E","fiori":"#B23A48","pavimentazione":"#CBC7BE","strada":"#8C827A","vegetazione":"#6F8C5B","siepi":"#4F6B46","ghiaia":"#C9C0B0","casette":"#8A6A4F","arredi":"#3A3C3E","cuscini":"#E4DED3","piscina":"#BFDDE6","solarium":"#D8D0C1","ombrellone":"#ECE5D6","muri":"#D6D1CD","muri_ovest":"#D6D1CD","logge":"#989594","sottotetto":"#D6D1CD","terrazzo":"#989594","frontalini":"#FFFFFF"},"lati":{"muri":true,"muri_ovest":true,"sottotetto":true,"terrazzo":true,"logge":true,"frontalini":true},"ringhiera":"tubolari","vetro":"trasparente"}];
+const BUILTIN_VARIANTS = [{"id":"base1","nome":"Proposta 1","predefinita":true,"colori":{"muri@E":"#D9D3D2","muri@S":"#D9D3D2","muri@W":"#A8A1A6","muri@N":"#A8A1A6","muri_ovest@S":"#D9D3D2","muri_ovest@W":"#D9D3D2","muri_ovest@N":"#D9D3D2","spalla_ovest":"#D9D3D2","logge@E":"#A8A1A6","logge@S":"#A8A1A6","logge@N":"#D9D3D2","sottotetto@E":"#D9D3D2","sottotetto@S":"#D9D3D2","sottotetto@W":"#A8A1A6","sottotetto@N":"#A8A1A6","terrazzo@W":"#A8A1A6","terrazzo@S":"#A8A1A6","cornici":"#EDECE8","frontalini@balcone_W":"#D9D3D2","frontalini@balcone_S":"#FFFFFF","frontalini@balcone_N":"#FFFFFF","frontalini@pianerottolo_W":"#A8A1A6","frontalini@pianerottolo_N":"#A8A1A6","frontalini@balconcino_W":"#A8A1A6","frontalini@balconcino_S":"#FFFFFF","frontalini@balconcino_N":"#A8A1A6","frontalini@terrazzo_W":"#FFFFFF","frontalini@terrazzo_S":"#FFFFFF","frontalini@loggia1_E":"#D9D3D2","frontalini@loggia1_N":"#A8A1A6","frontalini@loggia2_E":"#D9D3D2","soffitti":"#EDECE8","spallette":"#EDECE8","davanzali":"#747472","lattoneria":"#3A3C3F","pilastri":"#D9D3D2","zoccolo":"#8E9091","tegole":"#4B4C4F","serramenti":"#162431","vetri":"#A9C9E5","tapparelle":"#6A6C6F","ringhiere":"#2A2B2D","portoncino":"#2B2C2E","garage":"#36383A","terrazzi":"#B3AEA8","scala":"#E2E1DD","box":"#D9D3D2","box_tetto":"#55585B","cancello":"#6C655E","recinzione":"#6C655E","muretto":"#C7C7C7","gradini":"#9E9E9E","vialetto":"#FFFFFF","prato":"#8FA46E","fiori":"#B23A48","pavimentazione":"#CBC7BE","strada":"#8C827A","vegetazione":"#6F8C5B","siepi":"#4F6B46","ghiaia":"#C9C0B0","casette":"#8A6A4F","arredi":"#3A3C3E","cuscini":"#E4DED3","piscina":"#BFDDE6","solarium":"#D8D0C1","ombrellone":"#ECE5D6","muri":"#D9D3D2","muri_ovest":"#D9D3D2","logge":"#A8A1A6","sottotetto":"#D9D3D2","terrazzo":"#A8A1A6","frontalini":"#FFFFFF"},"lati":{"muri":true,"muri_ovest":true,"sottotetto":true,"terrazzo":true,"logge":true,"frontalini":true},"ringhiera":"tubolari","vetro":"trasparente"},{"id":"base2","nome":"Proposta 2","predefinita":true,"colori":{"muri@E":"#D9D3D2","muri@S":"#D9D3D2","muri@W":"#A8A1A6","muri@N":"#A8A1A6","muri_ovest@S":"#A8A1A6","muri_ovest@W":"#D9D3D2","muri_ovest@N":"#D9D3D2","spalla_ovest":"#A8A1A6","logge@E":"#A8A1A6","logge@S":"#A8A1A6","logge@N":"#D9D3D2","sottotetto@E":"#D9D3D2","sottotetto@S":"#D9D3D2","sottotetto@W":"#A8A1A6","sottotetto@N":"#A8A1A6","terrazzo@W":"#A8A1A6","terrazzo@S":"#A8A1A6","cornici":"#EDECE8","frontalini@balcone_W":"#D9D3D2","frontalini@balcone_S":"#FFFFFF","frontalini@balcone_N":"#FFFFFF","frontalini@pianerottolo_W":"#A8A1A6","frontalini@pianerottolo_N":"#A8A1A6","frontalini@balconcino_W":"#A8A1A6","frontalini@balconcino_S":"#FFFFFF","frontalini@balconcino_N":"#A8A1A6","frontalini@terrazzo_W":"#FFFFFF","frontalini@terrazzo_S":"#FFFFFF","frontalini@loggia1_E":"#D9D3D2","frontalini@loggia1_N":"#A8A1A6","frontalini@loggia2_E":"#D9D3D2","soffitti":"#EDECE8","spallette":"#EDECE8","davanzali":"#747472","lattoneria":"#3A3C3F","pilastri":"#D9D3D2","zoccolo":"#8E9091","tegole":"#4B4C4F","serramenti":"#162431","vetri":"#A9C9E5","tapparelle":"#6A6C6F","ringhiere":"#2A2B2D","portoncino":"#2B2C2E","garage":"#36383A","terrazzi":"#B3AEA8","scala":"#E2E1DD","box":"#D9D3D2","box_tetto":"#55585B","cancello":"#6C655E","recinzione":"#6C655E","muretto":"#C7C7C7","gradini":"#9E9E9E","vialetto":"#FFFFFF","prato":"#8FA46E","fiori":"#B23A48","pavimentazione":"#CBC7BE","strada":"#8C827A","vegetazione":"#6F8C5B","siepi":"#4F6B46","ghiaia":"#C9C0B0","casette":"#8A6A4F","arredi":"#3A3C3E","cuscini":"#E4DED3","piscina":"#BFDDE6","solarium":"#D8D0C1","ombrellone":"#ECE5D6","muri":"#D9D3D2","muri_ovest":"#D9D3D2","logge":"#A8A1A6","sottotetto":"#D9D3D2","terrazzo":"#A8A1A6","frontalini":"#FFFFFF"},"lati":{"muri":true,"muri_ovest":true,"sottotetto":true,"terrazzo":true,"logge":true,"frontalini":true},"ringhiera":"tubolari","vetro":"trasparente"}];
 let db = null, readOnly = false, variants = [];
 const allVariants = ()=>BUILTIN_VARIANTS.concat(variants);
 const fmt = iso => { try{ return new Date(iso).toLocaleString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
@@ -3071,7 +3279,7 @@ async function pngBlob(){
   resize();
   scene.background = new THREE.Color(cssVar('--sky-bot') || '#F1F2EF');
   clearFlash();
-  renderer.render(scene, cam);
+  renderFrame();
   const blob = await new Promise(r=>renderer.domElement.toBlob(r, 'image/png'));
   scene.background = null; renderer.setPixelRatio(prevRatio); resize();
   exporting = false;
@@ -3224,7 +3432,7 @@ function loop(now){
   tickGates(now);
   if(!nav){ const moved = (cam===persp ? ctrlP : ctrlO).update(); if(moved) needs = true; }
   if(envDirty){ updateEnv(); envDirty = false; needs = true; }
-  if(needs){ aimSun(); sky.visible = cam === persp; sky.position.copy(cam.position); renderer.render(scene, cam); updateHud(); needs = false; }
+  if(needs){ aimSun(); sky.visible = cam === persp; sky.position.copy(cam.position); renderFrame(); updateHud(); needs = false; }
 }
 requestAnimationFrame(loop);
 })();
