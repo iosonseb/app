@@ -121,6 +121,40 @@ button,input{font:inherit;color:inherit}
 .navspeed output{font-variant-numeric:tabular-nums;min-width:62px;text-align:right;color:var(--muted)}
 #stage.navigating .hint{bottom:auto;top:62px;right:16px;max-width:300px}
 @media (max-width:640px){ #stage.navigating .hint{display:none} }
+.lbl-short{display:none}
+@media (max-width:640px){
+  .views{top:10px;left:10px;right:10px;gap:5px}
+  .vbtn{padding:7px 10px;font-size:12.5px}
+  .vtoggle{gap:5px;min-width:0}
+  .vtoggle .vlbl{display:none}
+  .vtoggle b{display:block;max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .vmenu{min-width:0}
+  .vmlist{min-width:220px;max-height:min(60vh,420px)}
+  .lbl-long{display:none}
+  .lbl-short{display:inline}
+  .vchips{top:50px;left:10px;right:10px;gap:5px}
+  .vchips .vclbl{display:none}
+  .vchip{gap:6px;max-width:150px;padding:6px 10px;font-size:12px}
+  .vchip .strip{width:26px;height:10px}
+  #stage.has-vchips .gatefab,.gatefab{top:90px;left:10px;padding:6px 10px;font-size:12px}
+  #stage:not(.has-vchips) .gatefab{top:50px}
+  .titleblock{display:none}
+  .hint{display:none}
+  .compass{right:10px;bottom:10px;width:44px;height:44px}
+  .compass svg{width:34px;height:34px}
+  .navspeed{bottom:auto;top:50px;left:auto;right:10px;transform:none;padding:5px 9px;gap:6px;font-size:11.5px}
+  .navspeed .nslbl{display:none}
+  .navspeed input{width:84px}
+  .navspeed output{min-width:52px}
+  #stage.touchnav .navspeed{top:50px}
+  #stage.navigating .gatefab{top:50px}
+  .joy{left:14px;bottom:14px;width:116px;height:116px}
+  .joy-knob{width:50px;height:50px;margin:-25px 0 0 -25px}
+  .navpad{right:12px;bottom:64px;gap:8px}
+  .navpad button{width:68px;height:54px;font-size:13px;border-radius:14px}
+  #panel{gap:16px}
+  h1{font-size:22px}
+}
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--panel);font:500 12px/1 var(--font-ui);padding:6px 8px;border-radius:6px;white-space:nowrap;transform:translate(12px,12px)}
 .loading{position:absolute;inset:0;display:grid;place-items:center;font:500 14px var(--font-ui);color:var(--muted);pointer-events:none}
 
@@ -282,10 +316,10 @@ h2::after{content:"";flex:1;height:1px;background:var(--line)}
       </div>
       <button class="vbtn navbtn" id="bWalk" type="button" aria-pressed="false" title="Doppio Spazio per volare">Cammina</button>
       <button class="vbtn navbtn" id="bFly" type="button" aria-pressed="false">Vola</button>
-      <button class="vbtn panelbtn" id="bPanel" type="button" aria-pressed="false" aria-controls="panel" title="Nascondi o mostra il menu (tasto M)">Nascondi menu</button>
+      <button class="vbtn panelbtn" id="bPanel" type="button" aria-pressed="false" aria-controls="panel" title="Nascondi o mostra il menu (tasto M)"><span class="lbl-long">Nascondi menu</span><span class="lbl-short">Menu</span></button>
     </div>
     <div class="vchips" id="vchips" role="group" aria-label="Varianti salvate" hidden></div>
-    <label class="navspeed" id="navSpeed" hidden><span>Velocità</span>
+    <label class="navspeed" id="navSpeed" hidden><span class="nslbl">Velocità</span>
       <input type="range" id="navSpeedR" min="0.3" max="4" step="0.1" value="1" aria-label="Velocità di movimento">
       <output id="navSpeedO">5,4 km/h</output></label>
     <div class="joy" id="joy" hidden aria-label="Cursore di movimento"><span class="joy-knob"></span></div>
@@ -1935,7 +1969,8 @@ document.querySelectorAll('.vbtn[data-view]').forEach(b=>b.addEventListener('cli
 
 function setPanel(hidden){
   document.getElementById('app').classList.toggle('nopanel', hidden);
-  $('#bPanel').textContent = hidden ? 'Mostra menu' : 'Nascondi menu';
+  $('#bPanel').querySelector('.lbl-long').textContent = hidden ? 'Mostra menu' : 'Nascondi menu';
+  $('#bPanel').querySelector('.lbl-short').textContent = hidden ? 'Menu' : 'Chiudi';
   $('#bPanel').setAttribute('aria-pressed', String(hidden));
   store.set('casa3d.nopanel', hidden); needs = true;
 }
@@ -2078,16 +2113,13 @@ function forwardPressed(){
 function tickNav(dt){
   if(!nav || !dt) return;
   const K = navKeys, P = navPad, shift = K.ShiftLeft || K.ShiftRight;
-  let f = 0, s = 0, turn = 0;
+  let f = 0, s = 0;
   if(K.KeyW || K.ArrowUp) f += 1;
   if(K.KeyS || K.ArrowDown) f -= 1;
-  if(K.KeyD) s += 1;
-  if(K.KeyA) s -= 1;
+  if(K.KeyD || K.ArrowRight) s += 1;
+  if(K.KeyA || K.ArrowLeft) s -= 1;
   if(joy.mag > 0){ f -= joy.y; s += joy.x; }
-  if(K.ArrowLeft) turn += 1;
-  if(K.ArrowRight) turn -= 1;
   if(f <= 0) nav.sprint = false;
-  if(turn) nav.yaw += turn*1.7*dt;
   const walk = nav.mode === 'walk';
   let speed = NAV_BASE[nav.mode]*navMul[nav.mode];
   if(nav.sprint) speed *= walk ? 2 : 2.5;
@@ -2144,14 +2176,14 @@ document.addEventListener('pointerlockchange', ()=>{
   navWasLocked = false;
 });
 let lookDrag = null;
-canvas.addEventListener('pointerdown', e=>{ if(nav && !locked() && !(freeLook && e.pointerType === 'mouse')) lookDrag = {x:e.clientX, y:e.clientY}; });
+canvas.addEventListener('pointerdown', e=>{ if(nav && !locked() && !lookDrag && !(freeLook && e.pointerType === 'mouse')) lookDrag = {id:e.pointerId, x:e.clientX, y:e.clientY}; });
 window.addEventListener('pointermove', e=>{
-  if(!nav || !lookDrag || locked()) return;
-  const dx = e.clientX - lookDrag.x, dy = e.clientY - lookDrag.y; lookDrag = {x:e.clientX, y:e.clientY};
+  if(!nav || !lookDrag || locked() || e.pointerId !== lookDrag.id) return;
+  const dx = e.clientX - lookDrag.x, dy = e.clientY - lookDrag.y; lookDrag.x = e.clientX; lookDrag.y = e.clientY;
   nav.yaw += dx*0.0045; nav.pitch = THREE.MathUtils.clamp(nav.pitch + dy*0.0045, -1.45, 1.45);
   applyNavCamera();
 });
-window.addEventListener('pointerup', ()=>{ lookDrag = null; });
+['pointerup','pointercancel'].forEach(t=>window.addEventListener(t, e=>{ if(lookDrag && e.pointerId === lookDrag.id) lookDrag = null; }));
 canvas.addEventListener('wheel', e=>{ if(!nav) return; e.preventDefault(); setNavMul(navMul[nav.mode]*(e.deltaY > 0 ? 0.87 : 1.15)); }, {passive:false});
 $('#navSpeedR').addEventListener('input', e=>setNavMul(+e.target.value));
 const typing = el => el && ((el.tagName === 'INPUT' && el.type !== 'range') || el.tagName === 'TEXTAREA' || el.isContentEditable);
