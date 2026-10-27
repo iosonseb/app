@@ -94,9 +94,6 @@
 
 			}
 
-			// Tells the LoadingManager to track an extra item, which resolves after
-			// the model is fully loaded. This means the count of items loaded will
-			// be incorrect, but ensures manager.onLoad() does not fire early.
 			this.manager.itemStart( url );
 			const _onError = function ( e ) {
 
@@ -245,10 +242,6 @@
 				const plugin = this.pluginCallbacks[ i ]( parser );
 				plugins[ plugin.name ] = plugin;
 
-				// Workaround to avoid determining as unknown extension
-				// in addUnknownExtensionsToUserData().
-				// Remove this workaround if we move all the existing
-				// extension handlers to plugin system
 				extensions[ plugin.name ] = true;
 
 			}
@@ -304,8 +297,6 @@
 
 	}
 
-	/* GLTFREGISTRY */
-
 	function GLTFRegistry() {
 
 		let objects = {};
@@ -334,10 +325,6 @@
 
 	}
 
-	/*********************************/
-	/********** EXTENSIONS ***********/
-	/*********************************/
-
 	const EXTENSIONS = {
 		KHR_BINARY_GLTF: 'KHR_binary_glTF',
 		KHR_DRACO_MESH_COMPRESSION: 'KHR_draco_mesh_compression',
@@ -359,11 +346,6 @@
 		EXT_MESH_GPU_INSTANCING: 'EXT_mesh_gpu_instancing'
 	};
 
-	/**
- * Punctual Lights Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_lights_punctual
- */
 	class GLTFLightsExtension {
 
 		constructor( parser ) {
@@ -371,7 +353,6 @@
 			this.parser = parser;
 			this.name = EXTENSIONS.KHR_LIGHTS_PUNCTUAL;
 
-			// THREE.Object3D instance caches
 			this.cache = {
 				refs: {},
 				uses: {}
@@ -422,7 +403,7 @@
 				case 'spot':
 					lightNode = new THREE.SpotLight( color );
 					lightNode.distance = range;
-					// Handle spotlight properties.
+
 					lightDef.spot = lightDef.spot || {};
 					lightDef.spot.innerConeAngle = lightDef.spot.innerConeAngle !== undefined ? lightDef.spot.innerConeAngle : 0;
 					lightDef.spot.outerConeAngle = lightDef.spot.outerConeAngle !== undefined ? lightDef.spot.outerConeAngle : Math.PI / 4.0;
@@ -436,8 +417,6 @@
 
 			}
 
-			// Some lights (e.g. spot) default to a position other than the origin. Reset the position
-			// here, because node-level parsing will only override position if explicitly specified.
 			lightNode.position.set( 0, 0, 0 );
 			lightNode.decay = 2;
 			assignExtrasToUserData( lightNode, lightDef );
@@ -473,11 +452,6 @@
 
 	}
 
-	/**
- * Unlit Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_unlit
- */
 	class GLTFMaterialsUnlitExtension {
 
 		constructor() {
@@ -520,11 +494,6 @@
 
 	}
 
-	/**
- * Materials Emissive Strength Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/blob/5768b3ce0ef32bc39cdf1bef10b948586635ead3/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
- */
 	class GLTFMaterialsEmissiveStrengthExtension {
 
 		constructor( parser ) {
@@ -556,11 +525,6 @@
 
 	}
 
-	/**
- * Clearcoat Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_clearcoat
- */
 	class GLTFMaterialsClearcoatExtension {
 
 		constructor( parser ) {
@@ -631,11 +595,6 @@
 
 	}
 
-	/**
- * Iridescence Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_iridescence
- */
 	class GLTFMaterialsIridescenceExtension {
 
 		constructor( parser ) {
@@ -712,11 +671,6 @@
 
 	}
 
-	/**
- * Sheen Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_sheen
- */
 	class GLTFMaterialsSheenExtension {
 
 		constructor( parser ) {
@@ -778,12 +732,6 @@
 
 	}
 
-	/**
- * Transmission Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_transmission
- * Draft: https://github.com/KhronosGroup/glTF/pull/1698
- */
 	class GLTFMaterialsTransmissionExtension {
 
 		constructor( parser ) {
@@ -830,11 +778,6 @@
 
 	}
 
-	/**
- * Materials Volume Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_volume
- */
 	class GLTFMaterialsVolumeExtension {
 
 		constructor( parser ) {
@@ -879,11 +822,6 @@
 
 	}
 
-	/**
- * Materials ior Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_ior
- */
 	class GLTFMaterialsIorExtension {
 
 		constructor( parser ) {
@@ -918,11 +856,6 @@
 
 	}
 
-	/**
- * Materials specular Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_specular
- */
 	class GLTFMaterialsSpecularExtension {
 
 		constructor( parser ) {
@@ -972,11 +905,6 @@
 
 	}
 
-	/**
- * BasisU THREE.Texture Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_basisu
- */
 	class GLTFTextureBasisUExtension {
 
 		constructor( parser ) {
@@ -1006,7 +934,6 @@
 
 				} else {
 
-					// Assumes that the extension is optional and that a fallback texture is present
 					return null;
 
 				}
@@ -1019,11 +946,6 @@
 
 	}
 
-	/**
- * WebP THREE.Texture Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/EXT_texture_webp
- */
 	class GLTFTextureWebPExtension {
 
 		constructor( parser ) {
@@ -1064,7 +986,6 @@
 
 				}
 
-				// Fall back to PNG or JPEG.
 				return parser.loadTexture( textureIndex );
 
 			} );
@@ -1078,8 +999,6 @@
 
 					const image = new Image();
 
-					// Lossy test image. Support for lossy images doesn't guarantee support for all
-					// WebP images, unfortunately.
 					image.src = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA';
 					image.onload = image.onerror = function () {
 
@@ -1097,11 +1016,6 @@
 
 	}
 
-	/**
- * meshopt BufferView Compression Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/EXT_meshopt_compression
- */
 	class GLTFMeshoptCompression {
 
 		constructor( parser ) {
@@ -1127,7 +1041,6 @@
 
 					} else {
 
-						// Assumes that the extension is optional and that fallback buffer data is present
 						return null;
 
 					}
@@ -1151,7 +1064,6 @@
 
 					} else {
 
-						// Support for MeshoptDecoder 0.18 or earlier, without decodeGltfBufferAsync
 						return decoder.ready.then( function () {
 
 							const result = new ArrayBuffer( count * stride );
@@ -1174,12 +1086,6 @@
 
 	}
 
-	/**
- * GPU Instancing Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/EXT_mesh_gpu_instancing
- *
- */
 	class GLTFMeshGpuInstancing {
 
 		constructor( parser ) {
@@ -1200,8 +1106,6 @@
 
 			const meshDef = json.meshes[ nodeDef.mesh ];
 
-			// No THREE.Points or Lines + Instancing support yet
-
 			for ( const primitive of meshDef.primitives ) {
 
 				if ( primitive.mode !== WEBGL_CONSTANTS.TRIANGLES && primitive.mode !== WEBGL_CONSTANTS.TRIANGLE_STRIP && primitive.mode !== WEBGL_CONSTANTS.TRIANGLE_FAN && primitive.mode !== undefined ) {
@@ -1214,8 +1118,6 @@
 
 			const extensionDef = nodeDef.extensions[ this.name ];
 			const attributesDef = extensionDef.attributes;
-
-			// @TODO: Can we support THREE.InstancedMesh + THREE.SkinnedMesh?
 
 			const pending = [];
 			const attributes = {};
@@ -1241,11 +1143,10 @@
 
 				const nodeObject = results.pop();
 				const meshes = nodeObject.isGroup ? nodeObject.children : [ nodeObject ];
-				const count = results[ 0 ].count; // All attribute counts should be same
+				const count = results[ 0 ].count;
 				const instancedMeshes = [];
 				for ( const mesh of meshes ) {
 
-					// Temporal variables
 					const m = new THREE.Matrix4();
 					const p = new THREE.Vector3();
 					const q = new THREE.Quaternion();
@@ -1275,7 +1176,6 @@
 
 					}
 
-					// Add instance attributes to the geometry, excluding TRS.
 					for ( const attributeName in attributes ) {
 
 						if ( attributeName !== 'TRANSLATION' && attributeName !== 'ROTATION' && attributeName !== 'SCALE' ) {
@@ -1286,10 +1186,8 @@
 
 					}
 
-					// Just in case
 					THREE.Object3D.prototype.copy.call( instancedMesh, mesh );
 
-					// https://github.com/mrdoob/three.js/issues/18334
 					instancedMesh.frustumCulled = false;
 					this.parser.assignFinalMaterial( instancedMesh );
 					instancedMeshes.push( instancedMesh );
@@ -1312,7 +1210,6 @@
 
 	}
 
-	/* BINARY EXTENSION */
 	const BINARY_EXTENSION_HEADER_MAGIC = 'glTF';
 	const BINARY_EXTENSION_HEADER_LENGTH = 12;
 	const BINARY_EXTENSION_CHUNK_TYPES = {
@@ -1363,8 +1260,6 @@
 
 				}
 
-				// Clients must ignore chunks with unknown types.
-
 				chunkIndex += chunkLength;
 
 			}
@@ -1379,11 +1274,6 @@
 
 	}
 
-	/**
- * DRACO THREE.Mesh Compression Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_draco_mesh_compression
- */
 	class GLTFDracoMeshCompressionExtension {
 
 		constructor( json, dracoLoader ) {
@@ -1456,11 +1346,6 @@
 
 	}
 
-	/**
- * THREE.Texture Transform Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform
- */
 	class GLTFTextureTransformExtension {
 
 		constructor() {
@@ -1478,7 +1363,6 @@
 
 			if ( transform.offset === undefined && transform.rotation === undefined && transform.scale === undefined ) {
 
-				// See https://github.com/mrdoob/three.js/issues/21819.
 				return texture;
 
 			}
@@ -1509,11 +1393,6 @@
 
 	}
 
-	/**
- * THREE.Mesh Quantization Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_mesh_quantization
- */
 	class GLTFMeshQuantizationExtension {
 
 		constructor() {
@@ -1524,12 +1403,6 @@
 
 	}
 
-	/*********************************/
-	/********** INTERPOLATION ********/
-	/*********************************/
-
-	// Spline Interpolation
-	// Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#appendix-c-spline-interpolation
 	class GLTFCubicSplineInterpolant extends THREE.Interpolant {
 
 		constructor( parameterPositions, sampleValues, sampleSize, resultBuffer ) {
@@ -1538,9 +1411,6 @@
 
 		}
 		copySampleValue_( index ) {
-
-			// Copies a sample value to the result buffer. See description of glTF
-			// CUBICSPLINE values layout in interpolate_() function below.
 
 			const result = this.resultBuffer,
 				values = this.sampleValues,
@@ -1573,14 +1443,12 @@
 			const s0 = 1 - s2;
 			const s1 = s3 - pp + p;
 
-			// Layout of keyframe output values for CUBICSPLINE animations:
-			//   [ inTangent_1, splineVertex_1, outTangent_1, inTangent_2, splineVertex_2, ... ]
 			for ( let i = 0; i !== stride; i ++ ) {
 
-				const p0 = values[ offset0 + i + stride ]; // splineVertex_k
-				const m0 = values[ offset0 + i + stride2 ] * td; // outTangent_k * (t_k+1 - t_k)
-				const p1 = values[ offset1 + i + stride ]; // splineVertex_k+1
-				const m1 = values[ offset1 + i ] * td; // inTangent_k+1 * (t_k+1 - t_k)
+				const p0 = values[ offset0 + i + stride ];
+				const m0 = values[ offset0 + i + stride2 ] * td;
+				const p1 = values[ offset1 + i + stride ];
+				const m1 = values[ offset1 + i ] * td;
 
 				result[ i ] = s0 * p0 + s1 * m0 + s2 * p1 + s3 * m1;
 
@@ -1604,15 +1472,9 @@
 
 	}
 
-	/*********************************/
-	/********** INTERNALS ************/
-	/*********************************/
-
-	/* CONSTANTS */
-
 	const WEBGL_CONSTANTS = {
 		FLOAT: 5126,
-		//FLOAT_MAT2: 35674,
+
 		FLOAT_MAT3: 35675,
 		FLOAT_MAT4: 35676,
 		FLOAT_VEC2: 35664,
@@ -1679,8 +1541,7 @@
 	};
 	const INTERPOLATION = {
 		CUBICSPLINE: undefined,
-		// We use a custom interpolant (GLTFCubicSplineInterpolation) for CUBICSPLINE tracks. Each
-		// keyframe track will be initialized with a default interpolation type, then modified.
+
 		LINEAR: THREE.InterpolateLinear,
 		STEP: THREE.InterpolateDiscrete
 	};
@@ -1690,9 +1551,6 @@
 		BLEND: 'BLEND'
 	};
 
-	/**
- * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#default-material
- */
 	function createDefaultMaterial( cache ) {
 
 		if ( cache[ 'DefaultMaterial' ] === undefined ) {
@@ -1715,8 +1573,6 @@
 
 	function addUnknownExtensionsToUserData( knownExtensions, object, objectDef ) {
 
-		// Add unknown glTF extensions to an object's userData.
-
 		for ( const name in objectDef.extensions ) {
 
 			if ( knownExtensions[ name ] === undefined ) {
@@ -1730,10 +1586,6 @@
 
 	}
 
-	/**
- * @param {Object3D|Material|BufferGeometry} object
- * @param {GLTF.definition} gltfDef
- */
 	function assignExtrasToUserData( object, gltfDef ) {
 
 		if ( gltfDef.extras !== undefined ) {
@@ -1752,14 +1604,6 @@
 
 	}
 
-	/**
- * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#morph-targets
- *
- * @param {BufferGeometry} geometry
- * @param {Array<GLTF.Target>} targets
- * @param {GLTFParser} parser
- * @return {Promise<BufferGeometry>}
- */
 	function addMorphTargets( geometry, targets, parser ) {
 
 		let hasMorphPosition = false;
@@ -1820,10 +1664,6 @@
 
 	}
 
-	/**
- * @param {Mesh} mesh
- * @param {GLTF.Mesh} meshDef
- */
 	function updateMorphTargets( mesh, meshDef ) {
 
 		mesh.updateMorphTargets();
@@ -1837,7 +1677,6 @@
 
 		}
 
-		// .extras has user-defined data, so check that .extras.targetNames is an array.
 		if ( meshDef.extras && Array.isArray( meshDef.extras.targetNames ) ) {
 
 			const targetNames = meshDef.extras.targetNames;
@@ -1894,9 +1733,6 @@
 
 	function getNormalizedComponentScale( constructor ) {
 
-		// Reference:
-		// https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_mesh_quantization#encoding-quantized-data
-
 		switch ( constructor ) {
 
 			case Int8Array:
@@ -1922,8 +1758,6 @@
 
 	}
 
-	/* GLTF PARSER */
-
 	class GLTFParser {
 
 		constructor( json = {}, options = {} ) {
@@ -1933,16 +1767,12 @@
 			this.plugins = {};
 			this.options = options;
 
-			// loader object cache
 			this.cache = new GLTFRegistry();
 
-			// associations between Three.js objects and glTF elements
 			this.associations = new Map();
 
-			// THREE.BufferGeometry caching
 			this.primitiveCache = {};
 
-			// THREE.Object3D instance caches
 			this.meshCache = {
 				refs: {},
 				uses: {}
@@ -1958,11 +1788,7 @@
 			this.sourceCache = {};
 			this.textureCache = {};
 
-			// Track node names, to ensure no duplicates
 			this.nodeNamesUsed = {};
-
-			// Use an THREE.ImageBitmapLoader if imageBitmaps are supported. Moves much of the
-			// expensive work of uploading a texture to the GPU off the main thread.
 
 			let isSafari = false;
 			let isFirefox = false;
@@ -2012,10 +1838,8 @@
 			const json = this.json;
 			const extensions = this.extensions;
 
-			// Clear the loader cache
 			this.cache.removeAll();
 
-			// Mark the special nodes/meshes in json for efficient parse
 			this._invokeAll( function ( ext ) {
 
 				return ext._markDefs && ext._markDefs();
@@ -2056,17 +1880,12 @@
 
 		}
 
-		/**
-   * Marks the special nodes/meshes in json for efficient parse.
-   */
 		_markDefs() {
 
 			const nodeDefs = this.json.nodes || [];
 			const skinDefs = this.json.skins || [];
 			const meshDefs = this.json.meshes || [];
 
-			// Nothing in the node definition indicates whether it is a THREE.Bone or an
-			// THREE.Object3D. Use the skins' joint references to mark bones.
 			for ( let skinIndex = 0, skinLength = skinDefs.length; skinIndex < skinLength; skinIndex ++ ) {
 
 				const joints = skinDefs[ skinIndex ].joints;
@@ -2078,8 +1897,6 @@
 
 			}
 
-			// Iterate over all nodes, marking references to shared resources,
-			// as well as skeleton joints.
 			for ( let nodeIndex = 0, nodeLength = nodeDefs.length; nodeIndex < nodeLength; nodeIndex ++ ) {
 
 				const nodeDef = nodeDefs[ nodeIndex ];
@@ -2087,9 +1904,6 @@
 
 					this._addNodeRef( this.meshCache, nodeDef.mesh );
 
-					// Nothing in the mesh definition indicates whether it is
-					// a THREE.SkinnedMesh or THREE.Mesh. Use the node's mesh reference
-					// to mark THREE.SkinnedMesh if node has skin.
 					if ( nodeDef.skin !== undefined ) {
 
 						meshDefs[ nodeDef.mesh ].isSkinnedMesh = true;
@@ -2108,15 +1922,6 @@
 
 		}
 
-		/**
-   * Counts references to shared node / THREE.Object3D resources. These resources
-   * can be reused, or "instantiated", at multiple nodes in the scene
-   * hierarchy. THREE.Mesh, Camera, and Light instances are instantiated and must
-   * be marked. Non-scenegraph resources (like Materials, Geometries, and
-   * Textures) can be reused directly and are not marked here.
-   *
-   * Example: CesiumMilkTruck sample model reuses "Wheel" meshes.
-   */
 		_addNodeRef( cache, index ) {
 
 			if ( index === undefined ) return;
@@ -2130,14 +1935,11 @@
 
 		}
 
-		/** Returns a reference to a shared resource, cloning it if necessary. */
 		_getNodeRef( cache, index, object ) {
 
 			if ( cache.refs[ index ] <= 1 ) return object;
 			const ref = object.clone();
 
-			// Propagates mappings to the cloned object, prevents mappings on the
-			// original object from being lost.
 			const updateMappings = ( original, clone ) => {
 
 				const mappings = this.associations.get( original );
@@ -2190,12 +1992,6 @@
 
 		}
 
-		/**
-   * Requests the specified dependency asynchronously, with caching.
-   * @param {string} type
-   * @param {number} index
-   * @return {Promise<Object3D|Material|THREE.Texture|AnimationClip|ArrayBuffer|Object>}
-   */
 		getDependency( type, index ) {
 
 			const cacheKey = type + ':' + index;
@@ -2281,11 +2077,6 @@
 
 		}
 
-		/**
-   * Requests all dependencies of the specified type asynchronously, with caching.
-   * @param {string} type
-   * @return {Promise<Array<Object>>}
-   */
 		getDependencies( type ) {
 
 			let dependencies = this.cache.get( type );
@@ -2306,11 +2097,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#buffers-and-buffer-views
-   * @param {number} bufferIndex
-   * @return {Promise<ArrayBuffer>}
-   */
 		loadBuffer( bufferIndex ) {
 
 			const bufferDef = this.json.buffers[ bufferIndex ];
@@ -2321,7 +2107,6 @@
 
 			}
 
-			// If present, GLB container is required to be the first buffer.
 			if ( bufferDef.uri === undefined && bufferIndex === 0 ) {
 
 				return Promise.resolve( this.extensions[ EXTENSIONS.KHR_BINARY_GLTF ].body );
@@ -2341,11 +2126,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#buffers-and-buffer-views
-   * @param {number} bufferViewIndex
-   * @return {Promise<ArrayBuffer>}
-   */
 		loadBufferView( bufferViewIndex ) {
 
 			const bufferViewDef = this.json.bufferViews[ bufferViewIndex ];
@@ -2359,11 +2139,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#accessors
-   * @param {number} accessorIndex
-   * @return {Promise<BufferAttribute|InterleavedBufferAttribute>}
-   */
 		loadAccessor( accessorIndex ) {
 
 			const parser = this;
@@ -2403,7 +2178,6 @@
 				const itemSize = WEBGL_TYPE_SIZES[ accessorDef.type ];
 				const TypedArray = WEBGL_COMPONENT_TYPES[ accessorDef.componentType ];
 
-				// For VEC3: itemSize is 3, elementBytes is 4, itemBytes is 12.
 				const elementBytes = TypedArray.BYTES_PER_ELEMENT;
 				const itemBytes = elementBytes * itemSize;
 				const byteOffset = accessorDef.byteOffset || 0;
@@ -2411,11 +2185,8 @@
 				const normalized = accessorDef.normalized === true;
 				let array, bufferAttribute;
 
-				// The buffer is not interleaved if the stride is the item size in bytes.
 				if ( byteStride && byteStride !== itemBytes ) {
 
-					// Each "slice" of the buffer, as defined by 'count' elements of 'byteStride' bytes, gets its own THREE.InterleavedBuffer
-					// This makes sure that IBA.count reflects accessor.count properly
 					const ibSlice = Math.floor( byteOffset / byteStride );
 					const ibCacheKey = 'InterleavedBuffer:' + accessorDef.bufferView + ':' + accessorDef.componentType + ':' + ibSlice + ':' + accessorDef.count;
 					let ib = parser.cache.get( ibCacheKey );
@@ -2423,7 +2194,6 @@
 
 						array = new TypedArray( bufferView, ibSlice * byteStride, accessorDef.count * byteStride / elementBytes );
 
-						// Integer parameters to IB/IBA are in array elements, not bytes.
 						ib = new THREE.InterleavedBuffer( array, byteStride / elementBytes );
 						parser.cache.add( ibCacheKey, ib );
 
@@ -2447,7 +2217,6 @@
 
 				}
 
-				// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#sparse-accessors
 				if ( accessorDef.sparse !== undefined ) {
 
 					const itemSizeIndices = WEBGL_TYPE_SIZES.SCALAR;
@@ -2458,7 +2227,6 @@
 					const sparseValues = new TypedArray( bufferViews[ 2 ], byteOffsetValues, accessorDef.sparse.count * itemSize );
 					if ( bufferView !== null ) {
 
-						// Avoid modifying the original ArrayBuffer, if the bufferView wasn't initialized with zeroes.
 						bufferAttribute = new THREE.BufferAttribute( bufferAttribute.array.slice(), bufferAttribute.itemSize, bufferAttribute.normalized );
 
 					}
@@ -2482,11 +2250,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#textures
-   * @param {number} textureIndex
-   * @return {Promise<THREE.Texture|null>}
-   */
 		loadTexture( textureIndex ) {
 
 			const json = this.json;
@@ -2514,7 +2277,6 @@
 			const cacheKey = ( sourceDef.uri || sourceDef.bufferView ) + ':' + textureDef.sampler;
 			if ( this.textureCache[ cacheKey ] ) {
 
-				// See https://github.com/mrdoob/three.js/issues/21559.
 				return this.textureCache[ cacheKey ];
 
 			}
@@ -2560,8 +2322,6 @@
 			let isObjectURL = false;
 			if ( sourceDef.bufferView !== undefined ) {
 
-				// Load binary image data from bufferView, if provided.
-
 				sourceURI = parser.getDependency( 'bufferView', sourceDef.bufferView ).then( function ( bufferView ) {
 
 					isObjectURL = true;
@@ -2602,8 +2362,6 @@
 
 			} ).then( function ( texture ) {
 
-				// Clean up resources and configure THREE.Texture.
-
 				if ( isObjectURL === true ) {
 
 					URL.revokeObjectURL( sourceURI );
@@ -2624,13 +2382,6 @@
 
 		}
 
-		/**
-   * Asynchronously assigns a texture to the given material parameters.
-   * @param {Object} materialParams
-   * @param {string} mapName
-   * @param {Object} mapDef
-   * @return {Promise<Texture>}
-   */
 		assignTexture( materialParams, mapName, mapDef, encoding ) {
 
 			const parser = this;
@@ -2638,8 +2389,6 @@
 
 				if ( ! texture ) return null;
 
-				// Materials sample aoMap from UV set 1 and other maps from UV set 0 - this can't be configured
-				// However, we will copy UV set 0 to UV set 1 on demand for aoMap
 				if ( mapDef.texCoord !== undefined && mapDef.texCoord != 0 && ! ( mapName === 'aoMap' && mapDef.texCoord == 1 ) ) {
 
 					console.warn( 'THREE.GLTFLoader: Custom UV set ' + mapDef.texCoord + ' for texture ' + mapName + ' not yet supported.' );
@@ -2672,14 +2421,6 @@
 
 		}
 
-		/**
-   * Assigns final material to a THREE.Mesh, THREE.Line, or THREE.Points instance. The instance
-   * already has a material (generated from the glTF material options alone)
-   * but reuse of the same glTF material may require multiple threejs materials
-   * to accommodate different primitive types, defines, etc. New materials will
-   * be created if necessary, and reused from a cache.
-   * @param  {Object3D} mesh THREE.Mesh, THREE.Line, or THREE.Points instance.
-   */
 		assignFinalMaterial( mesh ) {
 
 			const geometry = mesh.geometry;
@@ -2697,7 +2438,7 @@
 					THREE.Material.prototype.copy.call( pointsMaterial, material );
 					pointsMaterial.color.copy( material.color );
 					pointsMaterial.map = material.map;
-					pointsMaterial.sizeAttenuation = false; // glTF spec says points should be 1px
+					pointsMaterial.sizeAttenuation = false;
 
 					this.cache.add( cacheKey, pointsMaterial );
 
@@ -2722,7 +2463,6 @@
 
 			}
 
-			// Clone the material if it will be modified
 			if ( useDerivativeTangents || useVertexColors || useFlatShading ) {
 
 				let cacheKey = 'ClonedMaterial:' + material.uuid + ':';
@@ -2737,7 +2477,6 @@
 					if ( useFlatShading ) cachedMaterial.flatShading = true;
 					if ( useDerivativeTangents ) {
 
-						// https://github.com/mrdoob/three.js/issues/11438#issuecomment-507003995
 						if ( cachedMaterial.normalScale ) cachedMaterial.normalScale.y *= - 1;
 						if ( cachedMaterial.clearcoatNormalScale ) cachedMaterial.clearcoatNormalScale.y *= - 1;
 
@@ -2751,8 +2490,6 @@
 				material = cachedMaterial;
 
 			}
-
-			// workarounds for mesh and geometry
 
 			if ( material.aoMap && geometry.attributes.uv2 === undefined && geometry.attributes.uv !== undefined ) {
 
@@ -2769,11 +2506,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#materials
-   * @param {number} materialIndex
-   * @return {Promise<Material>}
-   */
 		loadMaterial( materialIndex ) {
 
 			const parser = this;
@@ -2791,9 +2523,6 @@
 				pending.push( kmuExtension.extendParams( materialParams, materialDef, parser ) );
 
 			} else {
-
-				// Specification:
-				// https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#metallic-roughness-material
 
 				const metallicRoughness = materialDef.pbrMetallicRoughness || {};
 				materialParams.color = new THREE.Color( 1.0, 1.0, 1.0 );
@@ -2845,7 +2574,6 @@
 
 				materialParams.transparent = true;
 
-				// See: https://github.com/mrdoob/three.js/issues/17706
 				materialParams.depthWrite = false;
 
 			} else {
@@ -2910,7 +2638,6 @@
 
 		}
 
-		/** When THREE.Object3D instances are targeted by animation, they need unique names. */
 		createUniqueName( originalName ) {
 
 			const sanitizedName = THREE.PropertyBinding.sanitizeNodeName( originalName || '' );
@@ -2926,14 +2653,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#geometry
-   *
-   * Creates BufferGeometries from primitives.
-   *
-   * @param {Array<GLTF.Primitive>} primitives
-   * @return {Promise<Array<BufferGeometry>>}
-   */
 		loadGeometries( primitives ) {
 
 			const parser = this;
@@ -2955,11 +2674,9 @@
 				const primitive = primitives[ i ];
 				const cacheKey = createPrimitiveKey( primitive );
 
-				// See if we've already created this geometry
 				const cached = cache[ cacheKey ];
 				if ( cached ) {
 
-					// Use the cached geometry if it exists
 					pending.push( cached.promise );
 
 				} else {
@@ -2967,17 +2684,14 @@
 					let geometryPromise;
 					if ( primitive.extensions && primitive.extensions[ EXTENSIONS.KHR_DRACO_MESH_COMPRESSION ] ) {
 
-						// Use DRACO geometry if available
 						geometryPromise = createDracoPrimitive( primitive );
 
 					} else {
 
-						// Otherwise create a new geometry
 						geometryPromise = addPrimitiveAttributes( new THREE.BufferGeometry(), primitive, parser );
 
 					}
 
-					// Cache this geometry
 					cache[ cacheKey ] = {
 						primitive: primitive,
 						promise: geometryPromise
@@ -2992,11 +2706,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#meshes
-   * @param {number} meshIndex
-   * @return {Promise<Group|Mesh|SkinnedMesh>}
-   */
 		loadMesh( meshIndex ) {
 
 			const parser = this;
@@ -3023,18 +2732,13 @@
 					const geometry = geometries[ i ];
 					const primitive = primitives[ i ];
 
-					// 1. create THREE.Mesh
-
 					let mesh;
 					const material = materials[ i ];
 					if ( primitive.mode === WEBGL_CONSTANTS.TRIANGLES || primitive.mode === WEBGL_CONSTANTS.TRIANGLE_STRIP || primitive.mode === WEBGL_CONSTANTS.TRIANGLE_FAN || primitive.mode === undefined ) {
 
-						// .isSkinnedMesh isn't in glTF spec. See ._markDefs()
 						mesh = meshDef.isSkinnedMesh === true ? new THREE.SkinnedMesh( geometry, material ) : new THREE.Mesh( geometry, material );
 						if ( mesh.isSkinnedMesh === true && ! mesh.geometry.attributes.skinWeight.normalized ) {
 
-							// we normalize floating point skin weight array to fix malformed assets (see #15319)
-							// it's important to skip this for non-float32 data since normalizeSkinWeights assumes non-normalized inputs
 							mesh.normalizeSkinWeights();
 
 						}
@@ -3116,11 +2820,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#cameras
-   * @param {number} cameraIndex
-   * @return {Promise<THREE.Camera>}
-   */
 		loadCamera( cameraIndex ) {
 
 			let camera;
@@ -3149,11 +2848,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#skins
-   * @param {number} skinIndex
-   * @return {Promise<Skeleton>}
-   */
 		loadSkin( skinIndex ) {
 
 			const skinDef = this.json.skins[ skinIndex ];
@@ -3209,11 +2903,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#animations
-   * @param {number} animationIndex
-   * @return {Promise<AnimationClip>}
-   */
 		loadAnimation( animationIndex ) {
 
 			const json = this.json;
@@ -3313,21 +3002,15 @@
 
 						const track = new TypedKeyframeTrack( targetNames[ j ] + '.' + PATH_PROPERTIES[ target.path ], inputAccessor.array, outputArray, interpolation );
 
-						// Override interpolation with custom factory method.
 						if ( sampler.interpolation === 'CUBICSPLINE' ) {
 
 							track.createInterpolant = function InterpolantFactoryMethodGLTFCubicSpline( result ) {
-
-								// A CUBICSPLINE keyframe in glTF has three output values for each input value,
-								// representing inTangent, splineVertex, and outTangent. As a result, track.getValueSize()
-								// must be divided by three to get the interpolant's sampleSize argument.
 
 								const interpolantType = this instanceof THREE.QuaternionKeyframeTrack ? GLTFCubicSplineQuaternionInterpolant : GLTFCubicSplineInterpolant;
 								return new interpolantType( this.times, this.values, this.getValueSize() / 3, result );
 
 							};
 
-							// Mark as CUBICSPLINE. `track.getInterpolation()` doesn't support custom interpolants.
 							track.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline = true;
 
 						}
@@ -3354,7 +3037,6 @@
 
 				const node = parser._getNodeRef( parser.meshCache, nodeDef.mesh, mesh );
 
-				// if weights are provided on the node, override weights on the mesh.
 				if ( nodeDef.weights !== undefined ) {
 
 					node.traverse( function ( o ) {
@@ -3376,11 +3058,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#nodes-and-hierarchy
-   * @param {number} nodeIndex
-   * @return {Promise<Object3D>}
-   */
 		loadNode( nodeIndex ) {
 
 			const json = this.json;
@@ -3388,7 +3065,6 @@
 			const parser = this;
 			const nodeDef = json.nodes[ nodeIndex ];
 
-			// reserve node's name before its dependencies, so the root has the intended name.
 			const nodeName = nodeDef.name ? parser.createUniqueName( nodeDef.name ) : '';
 			return function () {
 
@@ -3429,7 +3105,6 @@
 
 				let node;
 
-				// .isBone isn't in glTF spec. See ._markDefs
 				if ( nodeDef.isBone === true ) {
 
 					node = new THREE.Bone();
@@ -3508,11 +3183,6 @@
 
 		}
 
-		/**
-   * Specification: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#scenes
-   * @param {number} sceneIndex
-   * @return {Promise<Group>}
-   */
 		loadScene( sceneIndex ) {
 
 			const json = this.json;
@@ -3520,8 +3190,6 @@
 			const sceneDef = this.json.scenes[ sceneIndex ];
 			const parser = this;
 
-			// THREE.Loader returns THREE.Group, not Scene.
-			// See: https://github.com/mrdoob/three.js/issues/18342#issuecomment-578981172
 			const scene = new THREE.Group();
 			if ( sceneDef.name ) scene.name = parser.createUniqueName( sceneDef.name );
 			assignExtrasToUserData( scene, sceneDef );
@@ -3536,8 +3204,6 @@
 
 			return Promise.all( pending ).then( function () {
 
-				// Removes dangling associations, associations that reference a node that
-				// didn't make it into the scene.
 				const reduceAssociations = node => {
 
 					const reducedAssociations = new Map();
@@ -3580,8 +3246,6 @@
 
 			if ( nodeDef.skin === undefined ) return node;
 
-			// build skeleton here as well
-
 			return parser.getDependency( 'skin', nodeDef.skin ).then( function ( skeleton ) {
 
 				node.traverse( function ( mesh ) {
@@ -3595,8 +3259,6 @@
 			} );
 
 		} ).then( function ( node ) {
-
-			// build node hierachy
 
 			parentObject.add( node );
 			const pending = [];
@@ -3618,11 +3280,6 @@
 
 	}
 
-	/**
- * @param {BufferGeometry} geometry
- * @param {GLTF.Primitive} primitiveDef
- * @param {GLTFParser} parser
- */
 	function computeBounds( geometry, primitiveDef, parser ) {
 
 		const attributes = primitiveDef.attributes;
@@ -3632,8 +3289,6 @@
 			const accessor = parser.json.accessors[ attributes.POSITION ];
 			const min = accessor.min;
 			const max = accessor.max;
-
-			// glTF requires 'min' and 'max', but VRM (which extends glTF) currently ignores that requirement.
 
 			if ( min !== undefined && max !== undefined ) {
 
@@ -3673,11 +3328,8 @@
 					const min = accessor.min;
 					const max = accessor.max;
 
-					// glTF requires 'min' and 'max', but VRM (which extends glTF) currently ignores that requirement.
-
 					if ( min !== undefined && max !== undefined ) {
 
-						// we need to get max of absolute components because target weight is [-1,1]
 						vector.setX( Math.max( Math.abs( min[ 0 ] ), Math.abs( max[ 0 ] ) ) );
 						vector.setY( Math.max( Math.abs( min[ 1 ] ), Math.abs( max[ 1 ] ) ) );
 						vector.setZ( Math.max( Math.abs( min[ 2 ] ), Math.abs( max[ 2 ] ) ) );
@@ -3688,10 +3340,6 @@
 
 						}
 
-						// Note: this assumes that the sum of all weights is at most 1. This isn't quite correct - it's more conservative
-						// to assume that each target can have a max weight of 1. However, for some use cases - notably, when morph targets
-						// are used to implement key-frame animations and as such only two are active at a time - this results in very large
-						// boxes. So for now we make a box that's sometimes a touch too small but is hopefully mostly of reasonable size.
 						maxDisplacement.max( vector );
 
 					} else {
@@ -3704,7 +3352,6 @@
 
 			}
 
-			// As per comment above this box isn't conservative, but has a reasonable size for a very large number of morph targets.
 			box.expandByVector( maxDisplacement );
 
 		}
@@ -3717,12 +3364,6 @@
 
 	}
 
-	/**
- * @param {BufferGeometry} geometry
- * @param {GLTF.Primitive} primitiveDef
- * @param {GLTFParser} parser
- * @return {Promise<BufferGeometry>}
- */
 	function addPrimitiveAttributes( geometry, primitiveDef, parser ) {
 
 		const attributes = primitiveDef.attributes;
@@ -3741,7 +3382,6 @@
 
 			const threeAttributeName = ATTRIBUTES[ gltfAttributeName ] || gltfAttributeName.toLowerCase();
 
-			// Skip attributes already provided by e.g. Draco extension.
 			if ( threeAttributeName in geometry.attributes ) continue;
 			pending.push( assignAttributeAccessor( attributes[ gltfAttributeName ], threeAttributeName ) );
 
@@ -3768,16 +3408,9 @@
 
 	}
 
-	/**
- * @param {BufferGeometry} geometry
- * @param {Number} drawMode
- * @return {BufferGeometry}
- */
 	function toTrianglesDrawMode( geometry, drawMode ) {
 
 		let index = geometry.getIndex();
-
-		// generate index if not present
 
 		if ( index === null ) {
 
@@ -3803,13 +3436,9 @@
 
 		}
 
-		//
-
 		const numberOfTriangles = index.count - 2;
 		const newIndices = [];
 		if ( drawMode === THREE.TriangleFanDrawMode ) {
-
-			// gl.TRIANGLE_FAN
 
 			for ( let i = 1; i <= numberOfTriangles; i ++ ) {
 
@@ -3820,8 +3449,6 @@
 			}
 
 		} else {
-
-			// gl.TRIANGLE_STRIP
 
 			for ( let i = 0; i < numberOfTriangles; i ++ ) {
 
@@ -3848,8 +3475,6 @@
 			console.error( 'THREE.GLTFLoader.toTrianglesDrawMode(): Unable to generate correct amount of triangles.' );
 
 		}
-
-		// build final geometry
 
 		const newGeometry = geometry.clone();
 		newGeometry.setIndex( newIndices );

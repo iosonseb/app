@@ -1,12 +1,5 @@
 ( function () {
 
-	// This set of controls performs orbiting, dollying (zooming), and panning.
-	// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
-	//
-	//    Orbit - left mouse / touch: one-finger move
-	//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
-	//    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
-
 	const _changeEvent = {
 		type: 'change'
 	};
@@ -23,58 +16,41 @@
 			super();
 			this.object = object;
 			this.domElement = domElement;
-			this.domElement.style.touchAction = 'none'; // disable touch scroll
+			this.domElement.style.touchAction = 'none';
 
-			// Set to false to disable this control
 			this.enabled = true;
 
-			// "target" sets the location of focus, where the object orbits around
 			this.target = new THREE.Vector3();
 
-			// How far you can dolly in and out ( PerspectiveCamera only )
 			this.minDistance = 0;
 			this.maxDistance = Infinity;
 
-			// How far you can zoom in and out ( OrthographicCamera only )
 			this.minZoom = 0;
 			this.maxZoom = Infinity;
 
-			// How far you can orbit vertically, upper and lower limits.
-			// Range is 0 to Math.PI radians.
-			this.minPolarAngle = 0; // radians
-			this.maxPolarAngle = Math.PI; // radians
+			this.minPolarAngle = 0;
+			this.maxPolarAngle = Math.PI;
 
-			// How far you can orbit horizontally, upper and lower limits.
-			// If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
-			this.minAzimuthAngle = - Infinity; // radians
-			this.maxAzimuthAngle = Infinity; // radians
+			this.minAzimuthAngle = - Infinity;
+			this.maxAzimuthAngle = Infinity;
 
-			// Set to true to enable damping (inertia)
-			// If damping is enabled, you must call controls.update() in your animation loop
 			this.enableDamping = false;
 			this.dampingFactor = 0.05;
 
-			// This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
-			// Set to false to disable zooming
 			this.enableZoom = true;
 			this.zoomSpeed = 1.0;
 
-			// Set to false to disable rotating
 			this.enableRotate = true;
 			this.rotateSpeed = 1.0;
 
-			// Set to false to disable panning
 			this.enablePan = true;
 			this.panSpeed = 1.0;
-			this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
-			this.keyPanSpeed = 7.0; // pixels moved per arrow key push
+			this.screenSpacePanning = true;
+			this.keyPanSpeed = 7.0;
 
-			// Set to true to automatically rotate around the target
-			// If auto-rotate is enabled, you must call controls.update() in your animation loop
 			this.autoRotate = false;
-			this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+			this.autoRotateSpeed = 2.0;
 
-			// The four arrow keys
 			this.keys = {
 				LEFT: 'ArrowLeft',
 				UP: 'ArrowUp',
@@ -82,30 +58,22 @@
 				BOTTOM: 'ArrowDown'
 			};
 
-			// Mouse buttons
 			this.mouseButtons = {
 				LEFT: THREE.MOUSE.ROTATE,
 				MIDDLE: THREE.MOUSE.DOLLY,
 				RIGHT: THREE.MOUSE.PAN
 			};
 
-			// Touch fingers
 			this.touches = {
 				ONE: THREE.TOUCH.ROTATE,
 				TWO: THREE.TOUCH.DOLLY_PAN
 			};
 
-			// for reset
 			this.target0 = this.target.clone();
 			this.position0 = this.object.position.clone();
 			this.zoom0 = this.object.zoom;
 
-			// the target DOM element for key events
 			this._domElementKeyEvents = null;
-
-			//
-			// public methods
-			//
 
 			this.getPolarAngle = function () {
 
@@ -152,12 +120,10 @@
 
 			};
 
-			// this method is exposed, but perhaps it would be better if we can make it private...
 			this.update = function () {
 
 				const offset = new THREE.Vector3();
 
-				// so camera.up is the orbit axis
 				const quat = new THREE.Quaternion().setFromUnitVectors( object.up, new THREE.Vector3( 0, 1, 0 ) );
 				const quatInverse = quat.clone().invert();
 				const lastPosition = new THREE.Vector3();
@@ -168,10 +134,8 @@
 					const position = scope.object.position;
 					offset.copy( position ).sub( scope.target );
 
-					// rotate offset to "y-axis-is-up" space
 					offset.applyQuaternion( quat );
 
-					// angle from z-axis around y-axis
 					spherical.setFromVector3( offset );
 					if ( scope.autoRotate && state === STATE.NONE ) {
 
@@ -191,8 +155,6 @@
 
 					}
 
-					// restrict theta to be between desired limits
-
 					let min = scope.minAzimuthAngle;
 					let max = scope.maxAzimuthAngle;
 					if ( isFinite( min ) && isFinite( max ) ) {
@@ -211,15 +173,11 @@
 
 					}
 
-					// restrict phi to be between desired limits
 					spherical.phi = Math.max( scope.minPolarAngle, Math.min( scope.maxPolarAngle, spherical.phi ) );
 					spherical.makeSafe();
 					spherical.radius *= scale;
 
-					// restrict radius to be between desired limits
 					spherical.radius = Math.max( scope.minDistance, Math.min( scope.maxDistance, spherical.radius ) );
-
-					// move target to panned location
 
 					if ( scope.enableDamping === true ) {
 
@@ -233,7 +191,6 @@
 
 					offset.setFromSpherical( spherical );
 
-					// rotate offset back to "camera-up-vector-is-up" space
 					offset.applyQuaternion( quatInverse );
 					position.copy( scope.target ).add( offset );
 					scope.object.lookAt( scope.target );
@@ -251,10 +208,6 @@
 					}
 
 					scale = 1;
-
-					// update condition is:
-					// min(camera displacement, camera rotation in radians)^2 > EPS
-					// using small-angle approximation cos(x/2) = 1 - x^2 / 8
 
 					if ( zoomChanged || lastPosition.distanceToSquared( scope.object.position ) > EPS || 8 * ( 1 - lastQuaternion.dot( scope.object.quaternion ) ) > EPS ) {
 
@@ -285,13 +238,7 @@
 
 				}
 
-				//scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
-
 			};
-
-			//
-			// internals
-			//
 
 			const scope = this;
 			const STATE = {
@@ -307,7 +254,6 @@
 			let state = STATE.NONE;
 			const EPS = 0.000001;
 
-			// current position in spherical coordinates
 			const spherical = new THREE.Spherical();
 			const sphericalDelta = new THREE.Spherical();
 			let scale = 1;
@@ -353,7 +299,7 @@
 				const v = new THREE.Vector3();
 				return function panLeft( distance, objectMatrix ) {
 
-					v.setFromMatrixColumn( objectMatrix, 0 ); // get X column of objectMatrix
+					v.setFromMatrixColumn( objectMatrix, 0 );
 					v.multiplyScalar( - distance );
 					panOffset.add( v );
 
@@ -383,7 +329,6 @@
 
 			}();
 
-			// deltaX and deltaY are in pixels; right and down are positive
 			const pan = function () {
 
 				const offset = new THREE.Vector3();
@@ -392,27 +337,22 @@
 					const element = scope.domElement;
 					if ( scope.object.isPerspectiveCamera ) {
 
-						// perspective
 						const position = scope.object.position;
 						offset.copy( position ).sub( scope.target );
 						let targetDistance = offset.length();
 
-						// half of the fov is center to top of screen
 						targetDistance *= Math.tan( scope.object.fov / 2 * Math.PI / 180.0 );
 
-						// we use only clientHeight here so aspect ratio does not distort speed
 						panLeft( 2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix );
 						panUp( 2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix );
 
 					} else if ( scope.object.isOrthographicCamera ) {
 
-						// orthographic
 						panLeft( deltaX * ( scope.object.right - scope.object.left ) / scope.object.zoom / element.clientWidth, scope.object.matrix );
 						panUp( deltaY * ( scope.object.top - scope.object.bottom ) / scope.object.zoom / element.clientHeight, scope.object.matrix );
 
 					} else {
 
-						// camera neither orthographic nor perspective
 						console.warn( 'WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.' );
 						scope.enablePan = false;
 
@@ -463,10 +403,6 @@
 
 			}
 
-			//
-			// event callbacks - update the object state
-			//
-
 			function handleMouseDownRotate( event ) {
 
 				rotateStart.set( event.clientX, event.clientY );
@@ -490,7 +426,7 @@
 				rotateEnd.set( event.clientX, event.clientY );
 				rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
 				const element = scope.domElement;
-				rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+				rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight );
 
 				rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
 				rotateStart.copy( rotateEnd );
@@ -605,7 +541,6 @@
 
 				if ( needsUpdate ) {
 
-					// prevent the browser from scrolling on cursor keys
 					event.preventDefault();
 					scope.update();
 
@@ -685,7 +620,7 @@
 
 				rotateDelta.subVectors( rotateEnd, rotateStart ).multiplyScalar( scope.rotateSpeed );
 				const element = scope.domElement;
-				rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight ); // yes, height
+				rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientHeight );
 
 				rotateUp( 2 * Math.PI * rotateDelta.y / element.clientHeight );
 				rotateStart.copy( rotateEnd );
@@ -740,10 +675,6 @@
 
 			}
 
-			//
-			// event handlers - FSM: listen for events and reset state
-			//
-
 			function onPointerDown( event ) {
 
 				if ( scope.enabled === false ) return;
@@ -754,8 +685,6 @@
 					scope.domElement.addEventListener( 'pointerup', onPointerUp );
 
 				}
-
-				//
 
 				addPointer( event );
 				if ( event.pointerType === 'touch' ) {
@@ -1054,8 +983,6 @@
 
 			}
 
-			//
-
 			scope.domElement.addEventListener( 'contextmenu', onContextMenu );
 			scope.domElement.addEventListener( 'pointerdown', onPointerDown );
 			scope.domElement.addEventListener( 'pointercancel', onPointerCancel );
@@ -1063,28 +990,18 @@
 				passive: false
 			} );
 
-			// force an update at start
-
 			this.update();
 
 		}
 
 	}
 
-	// This set of controls performs orbiting, dollying (zooming), and panning.
-	// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
-	// This is very similar to OrbitControls, another set of touch behavior
-	//
-	//    Orbit - right mouse, or left mouse + ctrl/meta/shiftKey / touch: two-finger rotate
-	//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
-	//    Pan - left mouse, or arrow keys / touch: one-finger move
-
 	class MapControls extends OrbitControls {
 
 		constructor( object, domElement ) {
 
 			super( object, domElement );
-			this.screenSpacePanning = false; // pan orthogonal to world-space direction camera.up
+			this.screenSpacePanning = false;
 
 			this.mouseButtons.LEFT = THREE.MOUSE.PAN;
 			this.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
